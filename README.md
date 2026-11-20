@@ -51,12 +51,7 @@ Aplico migraciones de tres maneras:
 
 1. Automática en Development, con `MigrateAsync` al arrancar.
 2. A mano: `dotnet ef database update --project backend-asa.csproj`.
-3. Script idempotente. No dejé el archivo en el repo. Lo genero y lo ejecuto así:
-
-```bash
-dotnet ef migrations script --idempotent --project backend-asa.csproj -o scripts/migrations.sql
-sqlcmd -S localhost -d database-asa -E -i scripts/migrations.sql
-```
+3. Script idempotente en `scripts/migrations.sql`. Lo aplico con `sqlcmd -S localhost -d database-asa -E -i scripts/migrations.sql`.
 
 ## Reserva y concurrencia
 
@@ -106,6 +101,9 @@ Respondo `ProblemDetails`. El código va en `code`, en kebab-case.
 | libro-con-reservas-activas | 422 |
 | estado-no-permitido | 422 |
 | ejemplar-reservado | 422 |
+| lector-con-reservas-activas | 422 |
+| correo-duplicado | 409 |
+| identificador-duplicado | 409 |
 | error-interno | 500 |
 
 ## Endpoints
@@ -125,6 +123,11 @@ Respondo `ProblemDetails`. El código va en `code`, en kebab-case.
 | POST | /api/reservas | Autenticado | Reserva una copia. El lector usa su `lector_id`. Admin puede indicar otro |
 | POST | /api/reservas/{id}/cancelar | Dueño o Admin | Cancela y libera la copia |
 | GET | /api/reservas/{id} | Dueño o Admin | Detalle de una reserva |
+| GET | /api/lectores | Admin | Lista lectores, paginado, e indica si tienen usuario |
+| GET | /api/lectores/{id} | Admin | Detalle y reservas activas |
+| POST | /api/lectores | Admin | Crea el lector. Con password crea también su usuario |
+| PUT | /api/lectores/{id} | Admin | Edita datos y el correo del usuario ligado |
+| DELETE | /api/lectores/{id} | Admin | Baja lógica del lector y de su usuario |
 | GET | /api/lectores/{lectorId}/reservas | Ese lector o Admin | Lista paginada, la más reciente primero |
 | GET | /health | Público | Comprueba el DbContext |
 
@@ -148,7 +151,6 @@ Dejé el stock fuera de la tabla para que no se desfase del estado real de cada 
 
 Con más tiempo haría esto:
 
-- Commitear `scripts/migrations.sql` y dejar de depender de migrar al arrancar.
 - Préstamo de verdad: hoy `Prestado` existe en el enum y nadie lo asigna.
 - Refresh token y caducidad más corta que 60 minutos.
 - `UserSecretsId` en el csproj para no dejar la cadena en `appsettings.Development.json`.
