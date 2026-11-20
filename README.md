@@ -26,20 +26,20 @@ Scalar queda en `/scalar` (y `/` redirige ahí). El health check está en `/heal
 
 ## Usuarios demo
 
-Solo existen en Development. En configuración guardo el hash (`PasswordHasher`), nunca la contraseña.
+Viven en la tabla `Usuarios` y se siembran solo en Development, junto con el resto del seed. Las contraseñas salen de `Seed:AdminPassword` y `Seed:LectorPassword` en `appsettings.Development.json`. Si faltan, no creo usuarios. En la base guardo solo el hash.
 
 | Correo | Contraseña | Rol |
 | --- | --- | --- |
 | admin@demo.local | Admin-demo-123 | Admin |
 | ana.lopez@demo.local | Ana-demo-123 | Lector |
 
-Ana se liga al lector del seed por el correo `ana.lopez@demo.local`. El token lleva `sub`, `email`, `role` y, si es lector, `lector_id`.
+Ana queda ligada al lector `ana.lopez@demo.local`. El token lleva `sub`, `email`, `role` y, si tiene lector, `lector_id` tomado de `IdLector`. Un usuario inactivo no entra: el login responde 401 `credenciales-invalidas`.
 
 `POST /api/auth/login` devuelve `accessToken`. En Scalar elijo el esquema Bearer y pego el token, sin la palabra `Bearer`.
 
 ## Base de datos
 
-Cuatro tablas: `Libro`, `Ejemplar`, `Lector`, `Reserva`.
+Cuatro entidades de catálogo más la cuenta: `Libro`, `Ejemplar`, `Lector`, `Reserva` y `Usuario`.
 
 No guardo stock. Disponibles es el conteo de ejemplares en estado `Disponible` para ese libro.
 

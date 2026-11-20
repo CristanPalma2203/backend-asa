@@ -1,6 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using backend_asa.Common.Endpoints;
+using backend_asa.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Auth;
 
@@ -10,20 +12,23 @@ public sealed class MeEndpoint : IEndpoint
     {
         app.MapGroup("/api/auth")
             .WithTags("Auth")
-            .MapGet("/me", (ClaimsPrincipal usuario, IReadOnlyList<DemoUserOptions> usuarios) =>
+            .MapGet("/me", async (ClaimsPrincipal usuario, BibliotecaDbContext db, CancellationToken cancellationToken) =>
             {
                 var correo = usuario.FindFirst(JwtRegisteredClaimNames.Email)?.Value
                     ?? usuario.FindFirst("email")?.Value
                     ?? string.Empty;
-                var demo = usuarios.FirstOrDefault(item =>
-                    string.Equals(item.Correo, correo, StringComparison.OrdinalIgnoreCase));
+                var nombre = await db.Usuarios
+                    .AsNoTracking()
+                    .Where(item => item.Correo == correo)
+                    .Select(item => item.Nombre)
+                    .FirstOrDefaultAsync(cancellationToken);
                 var expira = FechaExpira(usuario);
 
                 return Results.Ok(new AuthSession(
                     null,
                     expira,
                     usuario.FindFirst("role")?.Value ?? string.Empty,
-                    demo?.Nombre ?? string.Empty,
+                    nombre ?? string.Empty,
                     Acceso.LectorId(usuario)));
             })
             .Produces<AuthSession>(StatusCodes.Status200OK)

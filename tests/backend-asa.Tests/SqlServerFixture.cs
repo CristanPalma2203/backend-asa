@@ -70,7 +70,12 @@ public sealed class SqlServerFixture : IAsyncLifetime
 
         await using var scope = Factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BibliotecaDbContext>();
-        await DatosIniciales.SeedAsync(db, CancellationToken.None);
+        var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        await DatosIniciales.SeedAsync(
+            db,
+            config["Seed:AdminPassword"],
+            config["Seed:LectorPassword"],
+            CancellationToken.None);
     }
 
     public async Task<T> EnDb<T>(Func<BibliotecaDbContext, Task<T>> accion)

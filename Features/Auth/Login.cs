@@ -5,6 +5,8 @@ using backend_asa.Common.Endpoints;
 using backend_asa.Common.Http;
 using backend_asa.Common.Results;
 using backend_asa.Common.Validation;
+using backend_asa.Domain;
+using backend_asa.Domain.Enums;
 using backend_asa.Infrastructure.Persistence;
 using FluentValidation;
 using Microsoft.AspNetCore.Identity;
@@ -35,15 +37,18 @@ public static class LoginHandler
 {
     public static async Task<Result<AuthSession>> Handle(
         LoginRequest request,
-        IReadOnlyList<DemoUserOptions> usuarios,
-        IOptions<JwtOptions> jwt,
-        PasswordHasher<DemoUserOptions> hasher,
         BibliotecaDbContext db,
+        IOptions<JwtOptions> jwt,
+        PasswordHasher<Usuario> hasher,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var usuario = usuarios.FirstOrDefault(item =>
-            string.Equals(item.Correo, request.Correo.Trim(), StringComparison.OrdinalIgnoreCase));
+        var correo = request.Correo.Trim();
+        var usuario = await db.Usuarios
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                item => item.Correo == correo && item.Estado == EstadoUsuario.Activo,
+                cancellationToken);
 
         if (usuario is null
             || hasher.VerifyHashedPassword(usuario, usuario.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
@@ -51,20 +56,7 @@ public static class LoginHandler
             return CredencialesInvalidas();
         }
 
-        int? lectorId = null;
-        if (string.Equals(usuario.Rol, Acceso.RolLector, StringComparison.Ordinal))
-        {
-            lectorId = await db.Lectores
-                .AsNoTracking()
-                .Where(lector => lector.Correo == usuario.Correo)
-                .Select(lector => (int?)lector.IdLector)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (lectorId is null)
-            {
-                return CredencialesInvalidas();
-            }
-        }
+        var lectorId = usuario.IdLector;
 
         var opciones = jwt.Value;
         var expira = timeProvider.GetUtcNow().AddMinutes(opciones.ExpirationMinutes);
@@ -72,7 +64,7 @@ public static class LoginHandler
         {
             new(JwtRegisteredClaimNames.Sub, usuario.Correo),
             new(JwtRegisteredClaimNames.Email, usuario.Correo),
-            new("role", usuario.Rol)
+            new("role", usuario.Rol.ToString())
         };
 
         if (lectorId is int id)
@@ -93,7 +85,7 @@ public static class LoginHandler
         return Result.Success(new AuthSession(
             new JwtSecurityTokenHandler().WriteToken(token),
             expira,
-            usuario.Rol,
+            usuario.Rol.ToString(),
             usuario.Nombre,
             lectorId));
     }
@@ -113,14 +105,13 @@ public sealed class LoginEndpoint : IEndpoint
             .WithTags("Auth")
             .MapPost("/login", async (
                 LoginRequest request,
-                IReadOnlyList<DemoUserOptions> usuarios,
-                IOptions<JwtOptions> jwt,
-                PasswordHasher<DemoUserOptions> hasher,
                 BibliotecaDbContext db,
+                IOptions<JwtOptions> jwt,
+                PasswordHasher<Usuario> hasher,
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await LoginHandler.Handle(request, usuarios, jwt, hasher, db, timeProvider, cancellationToken);
+                var result = await LoginHandler.Handle(request, db, jwt, hasher, timeProvider, cancellationToken);
                 return result.ToHttpResult();
             })
             .AllowAnonymous()

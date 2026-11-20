@@ -12,16 +12,3 @@ public sealed class JwtOptions
 
     public string Key { get; set; } = string.Empty;
 }
-
-public sealed class DemoUserOptions
-{
-    public const string SectionName = "DemoUsers";
-
-    public string Correo { get; set; } = string.Empty;
-
-    public string Nombre { get; set; } = string.Empty;
-
-    public string PasswordHash { get; set; } = string.Empty;
-
-    public string Rol { get; set; } = string.Empty;
-}

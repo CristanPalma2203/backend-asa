@@ -1,5 +1,6 @@
 using backend_asa.Domain;
 using backend_asa.Domain.Enums;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Infrastructure.Persistence.Seed;
@@ -57,21 +58,28 @@ public static class DatosIniciales
         new("LEC-CARLOS-001", "Carlos Méndez", "carlos.mendez@demo.local", EstadoLector.Inactivo)
     ];
 
-    public static void Seed(DbContext context)
+    public static void Seed(DbContext context, string? adminPassword, string? lectorPassword)
     {
         var libros = context.Set<Libro>().ToDictionary(l => l.Isbn);
         var codigos = context.Set<Ejemplar>().Select(e => e.CodigoInventario).ToHashSet();
-        var correos = context.Set<Lector>().Select(l => l.Correo).ToHashSet();
-        AgregarFaltantes(context, libros, codigos, correos);
+        var lectores = context.Set<Lector>().ToDictionary(l => l.Correo);
+        var correosUsuario = context.Set<Usuario>().Select(u => u.Correo).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        AgregarFaltantes(context, libros, codigos, lectores, correosUsuario, adminPassword, lectorPassword);
         context.SaveChanges();
     }
 
-    public static async Task SeedAsync(DbContext context, CancellationToken cancellationToken)
+    public static async Task SeedAsync(
+        DbContext context,
+        string? adminPassword,
+        string? lectorPassword,
+        CancellationToken cancellationToken)
     {
         var libros = await context.Set<Libro>().ToDictionaryAsync(l => l.Isbn, cancellationToken);
         var codigos = (await context.Set<Ejemplar>().Select(e => e.CodigoInventario).ToListAsync(cancellationToken)).ToHashSet();
-        var correos = (await context.Set<Lector>().Select(l => l.Correo).ToListAsync(cancellationToken)).ToHashSet();
-        AgregarFaltantes(context, libros, codigos, correos);
+        var lectores = await context.Set<Lector>().ToDictionaryAsync(l => l.Correo, cancellationToken);
+        var correosUsuario = (await context.Set<Usuario>().Select(u => u.Correo).ToListAsync(cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        AgregarFaltantes(context, libros, codigos, lectores, correosUsuario, adminPassword, lectorPassword);
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -79,7 +87,10 @@ public static class DatosIniciales
         DbContext context,
         Dictionary<string, Libro> libros,
         HashSet<string> codigos,
-        HashSet<string> correos)
+        Dictionary<string, Lector> lectores,
+        HashSet<string> correosUsuario,
+        string? adminPassword,
+        string? lectorPassword)
     {
         var ahora = DateTime.UtcNow;
 
@@ -119,19 +130,92 @@ public static class DatosIniciales
 
         foreach (var item in Lectores)
         {
-            if (!correos.Add(item.Correo))
+            if (lectores.ContainsKey(item.Correo))
             {
                 continue;
             }
 
-            context.Add(new Lector
+            var lector = new Lector
             {
                 Identificador = item.Identificador,
                 Nombre = item.Nombre,
                 Correo = item.Correo,
                 Estado = item.Estado
-            });
+            };
+            context.Add(lector);
+            lectores[item.Correo] = lector;
         }
+
+        AgregarUsuarios(context, lectores, correosUsuario, adminPassword, lectorPassword, ahora);
+    }
+
+    private static void AgregarUsuarios(
+        DbContext context,
+        Dictionary<string, Lector> lectores,
+        HashSet<string> correosUsuario,
+        string? adminPassword,
+        string? lectorPassword,
+        DateTime ahora)
+    {
+        var hasher = new PasswordHasher<Usuario>();
+
+        if (!string.IsNullOrWhiteSpace(adminPassword))
+        {
+            AgregarUsuario(
+                context,
+                correosUsuario,
+                hasher,
+                "admin@demo.local",
+                "Admin",
+                adminPassword,
+                RolUsuario.Admin,
+                null,
+                ahora);
+        }
+
+        if (!string.IsNullOrWhiteSpace(lectorPassword)
+            && lectores.TryGetValue("ana.lopez@demo.local", out var ana))
+        {
+            AgregarUsuario(
+                context,
+                correosUsuario,
+                hasher,
+                ana.Correo,
+                ana.Nombre,
+                lectorPassword,
+                RolUsuario.Lector,
+                ana,
+                ahora);
+        }
+    }
+
+    private static void AgregarUsuario(
+        DbContext context,
+        HashSet<string> correosUsuario,
+        PasswordHasher<Usuario> hasher,
+        string correo,
+        string nombre,
+        string password,
+        RolUsuario rol,
+        Lector? lector,
+        DateTime ahora)
+    {
+        if (!correosUsuario.Add(correo))
+        {
+            return;
+        }
+
+        var usuario = new Usuario
+        {
+            Correo = correo,
+            Nombre = nombre,
+            Rol = rol,
+            Estado = EstadoUsuario.Activo,
+            Lector = lector,
+            CreatedAt = ahora
+        };
+        usuario.PasswordHash = hasher.HashPassword(usuario, password);
+        context.Add(usuario);
     }
 
     private static LibroSeed Libro(

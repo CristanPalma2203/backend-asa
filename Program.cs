@@ -1,5 +1,6 @@
 using backend_asa.Common.Endpoints;
 using backend_asa.Common.Http;
+using backend_asa.Domain;
 using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
 using backend_asa.Infrastructure.Persistence.Seed;
@@ -30,9 +31,7 @@ if (jwtKey.Length < 32)
 }
 
 builder.Services.Configure<JwtOptions>(jwtSection);
-builder.Services.AddSingleton<IReadOnlyList<DemoUserOptions>>(
-    builder.Configuration.GetSection(DemoUserOptions.SectionName).Get<List<DemoUserOptions>>() ?? []);
-builder.Services.AddSingleton<PasswordHasher<DemoUserOptions>>();
+builder.Services.AddSingleton<PasswordHasher<Usuario>>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -101,10 +100,13 @@ builder.Services.AddCors(options =>
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<BibliotecaDbContext>();
 
+var adminPassword = builder.Configuration["Seed:AdminPassword"];
+var lectorPassword = builder.Configuration["Seed:LectorPassword"];
+
 builder.Services.AddDbContext<BibliotecaDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("database-asa"))
-        .UseSeeding((context, _) => DatosIniciales.Seed(context))
-        .UseAsyncSeeding((context, _, cancellationToken) => DatosIniciales.SeedAsync(context, cancellationToken)));
+        .UseSeeding((context, _) => DatosIniciales.Seed(context, adminPassword, lectorPassword))
+        .UseAsyncSeeding((context, _, cancellationToken) => DatosIniciales.SeedAsync(context, adminPassword, lectorPassword, cancellationToken)));
 
 var app = builder.Build();
 

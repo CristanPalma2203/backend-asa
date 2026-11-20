@@ -199,6 +199,59 @@ namespace backend_asa.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("backend_asa.Domain.Usuario", b =>
+                {
+                    b.Property<int>("IdUsuario")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("IdUsuario"));
+
+                    b.Property<string>("Correo")
+                        .IsRequired()
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int?>("IdLector")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Rol")
+                        .IsRequired()
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("IdUsuario");
+
+                    b.HasIndex("Correo")
+                        .IsUnique();
+
+                    b.HasIndex("IdLector")
+                        .IsUnique()
+                        .HasFilter("[IdLector] IS NOT NULL");
+
+                    b.ToTable("Usuarios", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Usuario_Estado", "[Estado] IN ('Activo', 'Inactivo')");
+
+                            t.HasCheckConstraint("CK_Usuario_Rol", "[Rol] IN ('Admin', 'Lector')");
+                        });
+                });
+
             modelBuilder.Entity("backend_asa.Domain.Ejemplar", b =>
                 {
                     b.HasOne("backend_asa.Domain.Libro", "Libro")
@@ -225,6 +278,16 @@ namespace backend_asa.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Ejemplar");
+
+                    b.Navigation("Lector");
+                });
+
+            modelBuilder.Entity("backend_asa.Domain.Usuario", b =>
+                {
+                    b.HasOne("backend_asa.Domain.Lector", "Lector")
+                        .WithMany()
+                        .HasForeignKey("IdLector")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Lector");
                 });
