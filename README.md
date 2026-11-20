@@ -16,15 +16,52 @@ El frontend vive en otro repo: [frontend-asa](https://github.com/CristanPalma220
 
 ## Arquitectura
 
-Uso **Vertical Slice**. Cada caso de uso es un archivo en `Features/<Área>/` que trae su request, su validador, su handler y su endpoint (`IEndpoint`). Los endpoints se registran solos por reflexión (`AddEndpoints` / `MapEndpoints`).
+Uso **Vertical Slice**. Cada caso de uso es una carpeta `Features/<Área>/<Operación>/` con un archivo por pieza: `Endpoint.cs` (`IEndpoint`), `Handler.cs`, `Request.cs`, `Response.cs` y `Validator.cs`; solo están los que la operación necesita. Lo que comparten varias operaciones de un área queda en la raíz del área (`LibroIsbn`, `CodigoInventario`, `RowVersionToken`, `ReservaDetalle`, `Acceso`). Los endpoints se registran solos por reflexión (`AddEndpoints` / `MapEndpoints`).
 
 ```
 Common/          Endpoints, Result/Error, ProblemDetails, validación, paginación, OpenAPI
 Domain/          Entidades y enums (Libro, Ejemplar, Lector, Reserva, Usuario)
-Features/        Auth, Libros, Ejemplares, Lectores, Reservas (un archivo por caso de uso)
+Features/        Casos de uso: una carpeta por área y una subcarpeta por operación (detalle abajo)
 Infrastructure/  DbContext, configuraciones EF, converters, migraciones y seed
 scripts/         migrations.sql idempotente
 tests/           Tests de integración contra SQL Server real
+```
+
+```
+Features/
+├── Auth/
+│   ├── Login/            Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
+│   ├── Me/               Endpoint.cs
+│   ├── Acceso.cs
+│   ├── AuthOptions.cs
+│   └── BearerSecuritySchemeTransformer.cs
+├── Ejemplar/
+│   ├── CambiarEstado/    Endpoint.cs, Handler.cs, Request.cs, Validator.cs
+│   ├── Crear/            Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
+│   ├── Desactivar/       Endpoint.cs, Handler.cs, Request.cs, Validator.cs
+│   ├── Editar/           Endpoint.cs, Handler.cs, Request.cs, Validator.cs
+│   ├── Listar/           Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
+│   ├── CodigoInventario.cs
+│   └── RowVersionToken.cs
+├── Lector/
+│   ├── Crear/            Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
+│   ├── Desactivar/       Endpoint.cs, Handler.cs, Request.cs, Validator.cs
+│   ├── Editar/           Endpoint.cs, Handler.cs, Request.cs, Validator.cs
+│   ├── Listar/           Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
+│   └── Obtener/          Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
+├── Libro/
+│   ├── Crear/            Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
+│   ├── Desactivar/       Endpoint.cs, Handler.cs, Request.cs, Validator.cs
+│   ├── Editar/           Endpoint.cs, Handler.cs, Request.cs, Validator.cs
+│   ├── Listar/           Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
+│   ├── Obtener/          Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
+│   └── LibroIsbn.cs
+└── Reserva/
+    ├── Cancelar/         Endpoint.cs, Handler.cs, Request.cs, Validator.cs
+    ├── Crear/            Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
+    ├── ListarPorLector/  Endpoint.cs, Handler.cs, Request.cs, Validator.cs
+    ├── Obtener/          Endpoint.cs, Handler.cs, Request.cs, Validator.cs
+    └── ReservaDetalle.cs
 ```
 
 Los handlers devuelven `Result` / `Result<T>` y no lanzan excepciones para los errores de negocio. `ResultExtensions.ToHttpResult()` traduce cada `ErrorType` a su status HTTP.
