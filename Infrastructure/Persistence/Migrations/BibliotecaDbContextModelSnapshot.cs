@@ -64,8 +64,6 @@ namespace backend_asa.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Estado");
 
-                    b.HasIndex("IdLibro");
-
                     b.HasIndex("IdLibro", "Estado");
 
                     b.ToTable("Ejemplares", t =>

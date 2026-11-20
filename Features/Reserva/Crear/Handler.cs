@@ -11,7 +11,27 @@ namespace backend_asa.Features.Reserva.Crear;
 
 public static class CrearReservaHandler
 {
+    // Con EnableRetryOnFailure, EF solo admite transacciones propias dentro de la estrategia de ejecución.
+    // Si hay un error transitorio se repite el intento completo; ChangeTracker.Clear() evita
+    // arrastrar entidades del intento fallido.
     public static async Task<Result<CrearReservaResponse>> Handle(
+        CrearReservaRequest request,
+        ClaimsPrincipal usuario,
+        BibliotecaDbContext db,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(
+            async ct =>
+            {
+                db.ChangeTracker.Clear();
+                return await EjecutarAsync(request, usuario, db, timeProvider, ct);
+            },
+            cancellationToken);
+    }
+
+    private static async Task<Result<CrearReservaResponse>> EjecutarAsync(
         CrearReservaRequest request,
         ClaimsPrincipal usuario,
         BibliotecaDbContext db,

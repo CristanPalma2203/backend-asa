@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,27 @@ public sealed class GlobalExceptionHandler(IHostEnvironment environment) : IExce
 
     private (int Status, string Code, string Title, string Detail) Map(Exception exception)
     {
+        // JSON mal formado o con tipos que no encajan en el request (p. ej. "lectorId": "abc").
+        if (exception is BadHttpRequestException { InnerException: JsonException })
+        {
+            return (
+                StatusCodes.Status400BadRequest,
+                "json-invalido",
+                "Solicitud inválida",
+                "El cuerpo de la solicitud no es un JSON válido o tiene valores de un tipo incorrecto.");
+        }
+
+        // Resto de fallos de binding: parámetros de ruta o query con formato inválido, cuerpo
+        // ausente, Content-Type no soportado (415), etc. Se respeta el status que trae la excepción.
+        if (exception is BadHttpRequestException badRequest)
+        {
+            return (
+                badRequest.StatusCode,
+                "solicitud-invalida",
+                "Solicitud inválida",
+                "La solicitud no tiene el formato esperado.");
+        }
+
         if (exception is DbUpdateConcurrencyException)
         {
             return (

@@ -239,3 +239,24 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261120191826_QuitarIndiceEjemplaresIdLibro'
+)
+BEGIN
+    DROP INDEX [IX_Ejemplares_IdLibro] ON [Ejemplares];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261120191826_QuitarIndiceEjemplaresIdLibro'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261120191826_QuitarIndiceEjemplaresIdLibro', N'10.0.15');
+END;
+
+COMMIT;
+GO
+

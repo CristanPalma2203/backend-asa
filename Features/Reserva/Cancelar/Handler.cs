@@ -9,7 +9,27 @@ namespace backend_asa.Features.Reserva.Cancelar;
 
 public static class CancelarReservaHandler
 {
+    // Con EnableRetryOnFailure, EF solo admite transacciones propias dentro de la estrategia de ejecución.
+    // Si hay un error transitorio se repite el intento completo; ChangeTracker.Clear() evita
+    // arrastrar entidades del intento fallido.
     public static async Task<Result> Handle(
+        int id,
+        ClaimsPrincipal usuario,
+        BibliotecaDbContext db,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(
+            async ct =>
+            {
+                db.ChangeTracker.Clear();
+                return await EjecutarAsync(id, usuario, db, timeProvider, ct);
+            },
+            cancellationToken);
+    }
+
+    private static async Task<Result> EjecutarAsync(
         int id,
         ClaimsPrincipal usuario,
         BibliotecaDbContext db,

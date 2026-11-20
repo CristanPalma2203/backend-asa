@@ -16,8 +16,6 @@ public class EjemplarConfiguration : IEntityTypeConfiguration<Ejemplar>
             .HasForeignKey(e => e.IdLibro)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(e => e.IdLibro);
-
         builder.Property(e => e.CodigoInventario)
             .IsRequired()
             .HasColumnType("varchar(30)");
@@ -32,6 +30,8 @@ public class EjemplarConfiguration : IEntityTypeConfiguration<Ejemplar>
 
         builder.HasIndex(e => e.Estado);
 
+        // Cubre también las búsquedas solo por IdLibro (columna inicial) y la FK hacia Libros,
+        // por eso no hay un índice aparte sobre IdLibro.
         builder.HasIndex(e => new { e.IdLibro, e.Estado });
 
         builder.Property(e => e.RowVersion)

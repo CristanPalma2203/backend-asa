@@ -10,7 +10,27 @@ namespace backend_asa.Features.Lector.Crear;
 
 public static class CrearLectorHandler
 {
+    // Con EnableRetryOnFailure, EF solo admite transacciones propias dentro de la estrategia de ejecución.
+    // Si hay un error transitorio se repite el intento completo; ChangeTracker.Clear() evita
+    // arrastrar entidades del intento fallido.
     public static async Task<Result<CrearLectorResponse>> Handle(
+        CrearLectorRequest request,
+        BibliotecaDbContext db,
+        PasswordHasher<Usuario> hasher,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(
+            async ct =>
+            {
+                db.ChangeTracker.Clear();
+                return await EjecutarAsync(request, db, hasher, timeProvider, ct);
+            },
+            cancellationToken);
+    }
+
+    private static async Task<Result<CrearLectorResponse>> EjecutarAsync(
         CrearLectorRequest request,
         BibliotecaDbContext db,
         PasswordHasher<Usuario> hasher,

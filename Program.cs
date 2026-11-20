@@ -92,6 +92,9 @@ builder.Services.AddOpenApi(options =>
     options.AddSchemaTransformer<EnumComoStringSchemaTransformer>();
 });
 builder.Services.AddProblemDetails();
+// Por defecto solo Development lanza BadHttpRequestException en los minimal APIs; en Production
+// respondería 400 sin cuerpo. Así todos los entornos pasan por GlobalExceptionHandler.
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddEndpoints();
@@ -113,7 +116,10 @@ var adminPassword = builder.Configuration["Seed:AdminPassword"];
 var lectorPassword = builder.Configuration["Seed:LectorPassword"];
 
 builder.Services.AddDbContext<BibliotecaDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("database-asa"))
+    options.UseSqlServer(
+            builder.Configuration.GetConnectionString("database-asa"),
+            // Reintenta errores transitorios (p. ej. SQL Server todavía arrancando en Docker).
+            sql => sql.EnableRetryOnFailure())
         .UseSeeding((context, _) => DatosIniciales.Seed(context, adminPassword, lectorPassword))
         .UseAsyncSeeding((context, _, cancellationToken) => DatosIniciales.SeedAsync(context, adminPassword, lectorPassword, cancellationToken)));
 

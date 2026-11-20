@@ -171,9 +171,8 @@ Todas las FK son `ON DELETE RESTRICT`: no hay borrado físico en cascada, las ba
 | `IX_Libros_Isbn` | Libros | `Isbn` | Único |
 | `IX_Libros_Estado` | Libros | `Estado` | |
 | `IX_Ejemplares_CodigoInventario` | Ejemplares | `CodigoInventario` | Único |
-| `IX_Ejemplares_IdLibro` | Ejemplares | `IdLibro` | |
 | `IX_Ejemplares_Estado` | Ejemplares | `Estado` | |
-| `IX_Ejemplares_IdLibro_Estado` | Ejemplares | `IdLibro`, `Estado` | Compuesto (conteo de disponibles) |
+| `IX_Ejemplares_IdLibro_Estado` | Ejemplares | `IdLibro`, `Estado` | Compuesto (conteo de disponibles; por ser `IdLibro` la columna inicial, también sirve para buscar por libro y para la FK) |
 | `IX_Lectores_Identificador` | Lectores | `Identificador` | Único |
 | `IX_Lectores_Correo` | Lectores | `Correo` | Único |
 | `IX_Reservas_IdLector` | Reservas | `IdLector` | |
@@ -182,6 +181,8 @@ Todas las FK son `ON DELETE RESTRICT`: no hay borrado físico en cascada, las ba
 | `IX_Reservas_Estado` | Reservas | `Estado` | |
 | `IX_Usuarios_Correo` | Usuarios | `Correo` | Único |
 | `IX_Usuarios_IdLector` | Usuarios | `IdLector` | Único filtrado `WHERE [IdLector] IS NOT NULL` |
+
+No hay un índice aparte sobre `Ejemplares.IdLibro`: era redundante con `IX_Ejemplares_IdLibro_Estado` y lo quita la migración `QuitarIndiceEjemplaresIdLibro`.
 
 **CHECK**
 
@@ -197,6 +198,13 @@ Todas las FK son `ON DELETE RESTRICT`: no hay borrado físico en cascada, las ba
 
 **Stock disponible.** No existe una columna de stock: `disponibles` es `COUNT(*)` de los `Ejemplares` del libro con `Estado = 'Disponible'`, calculado en cada consulta y apoyado en `IX_Ejemplares_IdLibro_Estado`.
 Reservar, cancelar o desactivar solo cambian el `Estado` de un ejemplar, así que el número no puede desfasarse de las copias reales.
+
+## Requisitos
+
+- **.NET 10 SDK**, para compilar, correr en local y lanzar los tests.
+- **Para correr en local:** SQL Server accesible desde la máquina (instancia local, LocalDB o Developer Edition).
+- **Para Docker y para los tests:** Docker Desktop encendido. Compose debe ser **v2** (el comando `docker compose`, no el antiguo `docker-compose` v1), porque el archivo usa la Compose Specification: `name:` de nivel superior, sin `version:`, y `depends_on` con `condition: service_healthy`. Probado con Docker Compose v2.24.6.
+- Opcional: `dotnet-ef` (`dotnet tool install --global dotnet-ef`) para crear migraciones o regenerar `scripts/migrations.sql`.
 
 ## Cómo correrlo
 
@@ -214,7 +222,7 @@ docker compose up --build
 ```
 
 - `db`: SQL Server 2022 con volumen `mssql-data` y healthcheck con `sqlcmd`. No publico el 1433 al host.
-- `api`: imagen local multi-stage (`sdk:10.0` → `aspnet:10.0`), corre como usuario no root `app` en el puerto 8080, con `HEALTHCHECK` a `/health`. Arranca cuando `db` está healthy.
+- `api`: imagen local multi-stage (`sdk:10.0` → `aspnet:10.0`), corre como usuario no root `app` en el puerto 8080, con `HEALTHCHECK` a `/health`. Arranca cuando `db` está healthy y tiene `restart: on-failure`. Además, EF Core usa `EnableRetryOnFailure`, así que si SQL Server tarda en aceptar conexiones la API reintenta en vez de caerse.
 - La API queda en `http://localhost:8080` y el health check en `http://localhost:8080/health`.
 
 Todos los secretos (contraseña de `sa`, `JWT_KEY`, contraseñas del seed) salen de `.env`, que no se versiona.
@@ -234,10 +242,10 @@ El seed crea dos usuarios en la tabla `Usuarios`. En la base guardo solo el hash
 | admin@demo.local | Admin | `Seed:AdminPassword` |
 | ana.lopez@demo.local | Lector (ligada al lector Ana López) | `Seed:LectorPassword` |
 
-Las contraseñas no están en este README. Salen de:
+Las contraseñas no están en este README. Dependen de cómo levantes la API:
 
-- En Visual Studio / Development: `appsettings.Development.json` → sección `Seed`.
-- En Docker: `.env` → `SEED_ADMIN_PASSWORD` y `SEED_LECTOR_PASSWORD`.
+- **Con Docker Compose:** salen de tu `.env`, que copias de `.env.example` (`cp .env.example .env`) y donde cambias los valores marcados `CAMBIAR`. Las variables son `SEED_ADMIN_PASSWORD` y `SEED_LECTOR_PASSWORD`. `.env` no se versiona, así que cada uno define las suyas.
+- **En local (Visual Studio o `dotnet run`, entorno Development):** salen de la sección `Seed` de `appsettings.Development.json`. Ese archivo es **solo para desarrollo**: no se carga fuera de Development y sus valores no deben usarse en ningún otro entorno.
 
 Si faltan, el seed no crea usuarios.
 
@@ -275,6 +283,8 @@ El token lleva `sub`, `email`, `role` y, si el usuario tiene lector, `lector_id`
 | Código | Status |
 | --- | --- |
 | validacion-fallida | 400 |
+| json-invalido | 400 |
+| solicitud-invalida | 400 (o el status del fallo, p. ej. 415) |
 | no-autenticado | 401 |
 | credenciales-invalidas | 401 |
 | acceso-denegado | 403 |
@@ -300,6 +310,8 @@ El token lleva `sub`, `email`, `role` y, si el usuario tiene lector, `lector_id`
 | ejemplar-reservado | 422 |
 | error-interno | 500 |
 
+`json-invalido` es un body con JSON mal formado o con un valor de tipo incorrecto (por ejemplo `"lectorId": "abc"`). `solicitud-invalida` cubre el resto de fallos de binding: un parámetro de ruta o query con formato inválido, un body ausente o un `Content-Type` no soportado.
+
 ## Tests
 
 Necesitan **Docker encendido**: Testcontainers levanta un SQL Server 2022 desechable.
@@ -308,7 +320,7 @@ Necesitan **Docker encendido**: Testcontainers levanta un SQL Server 2022 desech
 dotnet test tests/backend-asa.Tests/backend-asa.Tests.csproj
 ```
 
-Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 32 y cubren:
+Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 33 y cubren:
 
 - **Libros:** listado con datos iniciales, `search` como alias de `buscar`, filtro `autor` sin distinguir mayúsculas, alta como admin, ISBN duplicado e ISBN inválido.
 - **Ejemplares:** código duplicado, que no se pueda inactivar una copia reservada, editar con `rowVersion` vieja (`409 conflicto-concurrencia`) y desactivar una copia sin borrarla.
@@ -324,7 +336,8 @@ Son tests de integración de punta a punta (HTTP → API → SQL Server real). L
 - **Contrato:**
   - enums como texto en JSON y en OpenAPI;
   - `fechaSolicitud` y `fechaCancelacion` en UTC con `Z`;
-  - `idEjemplar` en el detalle y en el listado.
+  - `idEjemplar` en el detalle y en el listado;
+  - un body JSON roto da `400 json-invalido` como ProblemDetails.
 - **Migraciones:** que el modelo no tenga cambios pendientes (`HasPendingModelChanges`).
 
 ## Migraciones y `scripts/migrations.sql`

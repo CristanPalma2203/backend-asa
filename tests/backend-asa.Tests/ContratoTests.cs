@@ -11,6 +11,21 @@ public sealed class ContratoTests(SqlServerFixture fixture) : IntegrationTest(fi
     private const string PrincipitoIsbn = "9788498381498";
 
     [Fact]
+    public async Task Body_JsonRoto_Devuelve400JsonInvalidoComoProblemDetails()
+    {
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
+        using var body = new StringContent("{ \"isbn\": \"9780000000002\", \"titulo\": ", System.Text.Encoding.UTF8, "application/json");
+
+        var response = await admin.PostAsync("/api/libros", body);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+        var problem = await LeerJson(response);
+        problem.GetProperty("code").GetString().Should().Be("json-invalido");
+        problem.GetProperty("status").GetInt32().Should().Be(400);
+    }
+
+    [Fact]
     public async Task Reserva_FechaSolicitudSaleEnUtcConZ_AlCrearLeerYListar()
     {
         var libroId = await IdLibro(PrincipitoIsbn);
