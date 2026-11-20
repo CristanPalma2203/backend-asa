@@ -54,7 +54,7 @@ Como segunda barrera, `IX_Reservas_IdEjemplar_Activa` es un índice **único fil
 
 **Stock calculado.** No guardo un contador. "Disponibles" es el conteo de ejemplares en estado `Disponible`, así nunca se desfasa del estado real de cada copia.
 
-**Concurrencia optimista con `rowversion`.** `Ejemplar.RowVersion` es `rowversion`. Lo envío en base64 y el cliente lo devuelve al cambiar el estado de un ejemplar. Si otro usuario lo modificó antes, EF lanza `DbUpdateConcurrencyException` y respondo `409 conflicto-concurrencia`.
+**Concurrencia optimista con `rowversion`.** `Ejemplar.RowVersion` es `rowversion`. Lo envío en base64 y el cliente lo devuelve al cambiar el estado de un ejemplar o al editarlo. Si otro usuario lo modificó antes, EF lanza `DbUpdateConcurrencyException` y respondo `409 conflicto-concurrencia`.
 
 **Errores como ProblemDetails con `code`.** Todas las respuestas de error son `application/problem+json` con una extensión `code` en kebab-case (`sin-stock`, `lector-inactivo`…). El frontend decide qué mostrar por `code`, no por el texto. Las validaciones devuelven `400 validacion-fallida` con `errors` por campo. `GlobalExceptionHandler` cubre concurrencia, duplicados e internos.
 
@@ -125,6 +125,8 @@ El token lleva `sub`, `email`, `role` y, si el usuario tiene lector, `lector_id`
 | GET | /api/libros/{idLibro}/ejemplares | Admin | Copias con `rowVersion` en base64 |
 | POST | /api/libros/{idLibro}/ejemplares | Admin | Alta de copia en `Disponible` |
 | PUT | /api/libros/{idLibro}/ejemplares/{idEjemplar}/estado | Admin | Solo `Disponible` ↔ `Inactivo`, con `rowVersion` |
+| PUT | /api/ejemplares/{id} | Admin | Edita el `codigoInventario`, con `rowVersion`. 409 por código duplicado o por concurrencia |
+| DELETE | /api/ejemplares/{id} | Admin | Baja lógica (pasa a `Inactivo`). 422 `ejemplar-reservado` si está reservado |
 | POST | /api/reservas | Autenticado | Reserva una copia. El lector usa su `lector_id`; Admin puede indicar otro |
 | GET | /api/reservas/{id} | Dueño o Admin | Detalle de una reserva |
 | POST | /api/reservas/{id}/cancelar | Dueño o Admin | Cancela y libera la copia |
@@ -174,10 +176,10 @@ Necesitan **Docker encendido**: Testcontainers levanta un SQL Server 2022 desech
 dotnet test tests/backend-asa.Tests/backend-asa.Tests.csproj
 ```
 
-Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 28 y cubren:
+Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 30 y cubren:
 
 - **Libros:** listado con datos iniciales, alta como admin, ISBN duplicado e ISBN inválido.
-- **Ejemplares:** código duplicado y que no se pueda inactivar una copia reservada.
+- **Ejemplares:** código duplicado, que no se pueda inactivar una copia reservada, editar con `rowVersion` vieja (`409 conflicto-concurrencia`) y desactivar una copia sin borrarla.
 - **Reservas:**
   - stock al reservar y al cancelar;
   - cancelar dos veces: la segunda da `422 reserva-no-activa` y no cambia nada;

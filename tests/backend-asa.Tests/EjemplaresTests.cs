@@ -53,6 +53,59 @@ public sealed class EjemplaresTests(SqlServerFixture fixture) : IntegrationTest(
         (await Codigo(cambio)).Should().Be("ejemplar-reservado");
     }
 
+    [Fact]
+    public async Task Editar_ConRowVersionVieja_Devuelve409YConservaElPrimerCambio()
+    {
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
+        var libroId = await IdLibro("9788498381498");
+        var (ejemplarId, rowVersion) = await PrimerEjemplar(admin, libroId);
+        var primera = await admin.PutAsJsonAsync(
+            $"/api/ejemplares/{ejemplarId}",
+            new { codigoInventario = "BIB-900", rowVersion },
+            Json);
+        primera.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var segunda = await admin.PutAsJsonAsync(
+            $"/api/ejemplares/{ejemplarId}",
+            new { codigoInventario = "BIB-901", rowVersion },
+            Json);
+
+        segunda.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await Codigo(segunda)).Should().Be("conflicto-concurrencia");
+        var codigo = await Fixture.EnDb(db => db.Ejemplares
+            .Where(ejemplar => ejemplar.IdEjemplar == ejemplarId)
+            .Select(ejemplar => ejemplar.CodigoInventario)
+            .SingleAsync());
+        codigo.Should().Be("BIB-900");
+    }
+
+    [Fact]
+    public async Task Desactivar_EjemplarDisponible_QuedaInactivoSinBorrarse()
+    {
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
+        var libroId = await IdLibro("9788498381498");
+        var (ejemplarId, _) = await PrimerEjemplar(admin, libroId);
+
+        var response = await admin.DeleteAsync($"/api/ejemplares/{ejemplarId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var estado = await Fixture.EnDb(db => db.Ejemplares
+            .Where(ejemplar => ejemplar.IdEjemplar == ejemplarId)
+            .Select(ejemplar => (EstadoEjemplar?)ejemplar.Estado)
+            .SingleOrDefaultAsync());
+        estado.Should().Be(EstadoEjemplar.Inactivo);
+        var disponibles = await Fixture.EnDb(db => db.Ejemplares.CountAsync(ejemplar =>
+            ejemplar.IdLibro == libroId && ejemplar.Estado == EstadoEjemplar.Disponible));
+        disponibles.Should().Be(2);
+    }
+
+    private async Task<(int IdEjemplar, string RowVersion)> PrimerEjemplar(HttpClient admin, int libroId)
+    {
+        var response = await admin.GetAsync($"/api/libros/{libroId}/ejemplares");
+        var primero = (await LeerJson(response)).EnumerateArray().First();
+        return (primero.GetProperty("idEjemplar").GetInt32(), primero.GetProperty("rowVersion").GetString()!);
+    }
+
     private async Task<int> IdLibro(string isbn)
     {
         var response = await Client.GetAsync("/api/libros?page=1&pageSize=50");
