@@ -106,6 +106,7 @@ public sealed class ObtenerLibroEndpoint : IEndpoint
                 return result.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ObtenerLibroRequest>>()
+            .AllowAnonymous()
             .Produces<ObtenerLibroResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound);

@@ -116,6 +116,7 @@ public sealed class CambiarEstadoEjemplarEndpoint : IEndpoint
     {
         app.MapGroup("/api/libros/{idLibro:int}/ejemplares")
             .WithTags("Ejemplares")
+            .RequireAuthorization(policy => policy.RequireRole("Admin"))
             .MapPut("/{idEjemplar:int}/estado", async (
                 int idLibro,
                 int idEjemplar,

@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using backend_asa.Common.Endpoints;
 using backend_asa.Common.Http;
 using backend_asa.Common.Results;
 using backend_asa.Common.Validation;
 using backend_asa.Domain.Enums;
+using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +27,7 @@ public static class CancelarReservaHandler
 {
     public static async Task<Result> Handle(
         int id,
+        ClaimsPrincipal usuario,
         BibliotecaDbContext db,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
@@ -43,6 +46,12 @@ public static class CancelarReservaHandler
                 "reserva-no-encontrada",
                 "No se encontró la reserva.",
                 ErrorType.NotFound));
+        }
+
+        var acceso = Acceso.DenegarSiNoEsDuenoOAdmin(usuario, reserva.IdLector);
+        if (acceso is not null)
+        {
+            return acceso;
         }
 
         if (reserva.Estado != EstadoReserva.Activa)
@@ -73,16 +82,19 @@ public sealed class CancelarReservaEndpoint : IEndpoint
             .WithTags("Reservas")
             .MapPost("/{id:int}/cancelar", async (
                 [AsParameters] CancelarReservaRequest request,
+                ClaimsPrincipal usuario,
                 BibliotecaDbContext db,
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await CancelarReservaHandler.Handle(request.Id, db, timeProvider, cancellationToken);
+                var result = await CancelarReservaHandler.Handle(request.Id, usuario, db, timeProvider, cancellationToken);
                 return result.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<CancelarReservaRequest>>()
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
     }

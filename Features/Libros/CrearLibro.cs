@@ -4,6 +4,7 @@ using backend_asa.Common.Results;
 using backend_asa.Common.Validation;
 using backend_asa.Domain;
 using backend_asa.Domain.Enums;
+using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
 using FluentValidation;
 using Microsoft.Data.SqlClient;
@@ -106,6 +107,7 @@ public sealed class CrearLibroEndpoint : IEndpoint
                     : result.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<CrearLibroRequest>>()
+            .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))
             .Produces<CrearLibroResponse>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict);

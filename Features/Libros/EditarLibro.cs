@@ -102,6 +102,7 @@ public sealed class EditarLibroEndpoint : IEndpoint
                 return result.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<EditarLibroRequest>>()
+            .RequireAuthorization(policy => policy.RequireRole("Admin"))
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)

@@ -1,9 +1,11 @@
+using System.Security.Claims;
 using backend_asa.Common.Endpoints;
 using backend_asa.Common.Http;
 using backend_asa.Common.Pagination;
 using backend_asa.Common.Results;
 using backend_asa.Common.Validation;
 using backend_asa.Domain.Enums;
+using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -35,9 +37,16 @@ public static class ListarReservasPorLectorHandler
 {
     public static async Task<Result<PagedResponse<ReservaDetalle>>> Handle(
         ListarReservasPorLectorRequest request,
+        ClaimsPrincipal usuario,
         BibliotecaDbContext db,
         CancellationToken cancellationToken)
     {
+        var acceso = Acceso.DenegarSiNoEsDuenoOAdmin(usuario, request.LectorId);
+        if (acceso is not null)
+        {
+            return Result.Failure<PagedResponse<ReservaDetalle>>(acceso.Error!);
+        }
+
         var lectorExiste = await db.Lectores
             .AsNoTracking()
             .AnyAsync(lector => lector.IdLector == request.LectorId, cancellationToken);
@@ -86,15 +95,18 @@ public sealed class ListarReservasPorLectorEndpoint : IEndpoint
             .WithTags("Reservas")
             .MapGet("", async (
                 [AsParameters] ListarReservasPorLectorRequest request,
+                ClaimsPrincipal usuario,
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ListarReservasPorLectorHandler.Handle(request, db, cancellationToken);
+                var result = await ListarReservasPorLectorHandler.Handle(request, usuario, db, cancellationToken);
                 return result.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ListarReservasPorLectorRequest>>()
             .Produces<PagedResponse<ReservaDetalle>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 }

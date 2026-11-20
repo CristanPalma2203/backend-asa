@@ -11,8 +11,9 @@ public sealed class EjemplaresTests(SqlServerFixture fixture) : IntegrationTest(
     [Fact]
     public async Task Crear_CodigoDuplicado_Devuelve409()
     {
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
         var libroId = await IdLibro("9788498381498");
-        var response = await Client.PostAsJsonAsync($"/api/libros/{libroId}/ejemplares", new
+        var response = await admin.PostAsJsonAsync($"/api/libros/{libroId}/ejemplares", new
         {
             codigoInventario = "BIB-001"
         }, Json);
@@ -24,9 +25,10 @@ public sealed class EjemplaresTests(SqlServerFixture fixture) : IntegrationTest(
     [Fact]
     public async Task CambiarEstado_EjemplarReservado_Devuelve422()
     {
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
         var libroId = await IdLibro("9788498381498");
         var lectorId = await IdLector("ana.lopez@demo.local");
-        var reserva = await Client.PostAsJsonAsync("/api/reservas", new
+        var reserva = await admin.PostAsJsonAsync("/api/reservas", new
         {
             lectorId,
             libroId
@@ -35,14 +37,14 @@ public sealed class EjemplaresTests(SqlServerFixture fixture) : IntegrationTest(
         var creada = await LeerJson(reserva);
         var ejemplarId = creada.GetProperty("idEjemplar").GetInt32();
 
-        var ejemplares = await Client.GetAsync($"/api/libros/{libroId}/ejemplares");
+        var ejemplares = await admin.GetAsync($"/api/libros/{libroId}/ejemplares");
         var lista = await LeerJson(ejemplares);
         var rowVersion = lista.EnumerateArray()
             .Single(item => item.GetProperty("idEjemplar").GetInt32() == ejemplarId)
             .GetProperty("rowVersion")
             .GetString();
 
-        var cambio = await Client.PutAsJsonAsync(
+        var cambio = await admin.PutAsJsonAsync(
             $"/api/libros/{libroId}/ejemplares/{ejemplarId}/estado",
             new { estado = EstadoEjemplar.Inactivo, rowVersion },
             Json);

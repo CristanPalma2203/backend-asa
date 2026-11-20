@@ -73,6 +73,7 @@ public sealed class ListarEjemplaresEndpoint : IEndpoint
     {
         app.MapGroup("/api/libros/{idLibro:int}/ejemplares")
             .WithTags("Ejemplares")
+            .RequireAuthorization(policy => policy.RequireRole("Admin"))
             .MapGet("", async (
                 [AsParameters] ListarEjemplaresRequest request,
                 BibliotecaDbContext db,

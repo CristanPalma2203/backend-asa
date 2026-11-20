@@ -97,6 +97,7 @@ public sealed class ListarLibrosEndpoint : IEndpoint
                 return result.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ListarLibrosRequest>>()
+            .AllowAnonymous()
             .Produces<PagedResponse<ListarLibrosItem>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest);
     }

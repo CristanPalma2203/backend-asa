@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using backend_asa.Common.Endpoints;
 using backend_asa.Common.Http;
 using backend_asa.Common.Results;
 using backend_asa.Common.Validation;
+using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -24,23 +26,28 @@ public static class ObtenerReservaHandler
 {
     public static async Task<Result<ReservaDetalle>> Handle(
         int id,
+        ClaimsPrincipal usuario,
         BibliotecaDbContext db,
         CancellationToken cancellationToken)
     {
-        var reserva = await db.Reservas
+        var fila = await db.Reservas
             .AsNoTracking()
             .Where(item => item.IdReserva == id)
-            .Select(item => new ReservaDetalle(
-                item.IdReserva,
-                item.Ejemplar.IdLibro,
-                item.Ejemplar.Libro.Titulo,
-                item.Ejemplar.CodigoInventario,
-                item.Estado,
-                item.FechaSolicitud,
-                item.FechaCancelacion))
+            .Select(item => new
+            {
+                item.IdLector,
+                Detalle = new ReservaDetalle(
+                    item.IdReserva,
+                    item.Ejemplar.IdLibro,
+                    item.Ejemplar.Libro.Titulo,
+                    item.Ejemplar.CodigoInventario,
+                    item.Estado,
+                    item.FechaSolicitud,
+                    item.FechaCancelacion)
+            })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (reserva is null)
+        if (fila is null)
         {
             return Result.Failure<ReservaDetalle>(new Error(
                 "reserva-no-encontrada",
@@ -48,7 +55,13 @@ public static class ObtenerReservaHandler
                 ErrorType.NotFound));
         }
 
-        return Result.Success(reserva);
+        var acceso = Acceso.DenegarSiNoEsDuenoOAdmin(usuario, fila.IdLector);
+        if (acceso is not null)
+        {
+            return Result.Failure<ReservaDetalle>(acceso.Error!);
+        }
+
+        return Result.Success(fila.Detalle);
     }
 }
 
@@ -60,10 +73,11 @@ public sealed class ObtenerReservaEndpoint : IEndpoint
             .WithTags("Reservas")
             .MapGet("/{id:int}", async (
                 [AsParameters] ObtenerReservaRequest request,
+                ClaimsPrincipal usuario,
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ObtenerReservaHandler.Handle(request.Id, db, cancellationToken);
+                var result = await ObtenerReservaHandler.Handle(request.Id, usuario, db, cancellationToken);
                 return result.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ObtenerReservaRequest>>()

@@ -28,6 +28,8 @@ public static class ResultExtensions
             ErrorType.NotFound => (StatusCodes.Status404NotFound, "No encontrado"),
             ErrorType.Conflict => (StatusCodes.Status409Conflict, "Conflicto"),
             ErrorType.BusinessRule => (StatusCodes.Status422UnprocessableEntity, "Regla de negocio no satisfecha"),
+            ErrorType.Unauthorized => (StatusCodes.Status401Unauthorized, "No autenticado"),
+            ErrorType.Forbidden => (StatusCodes.Status403Forbidden, "Acceso denegado"),
             _ => (StatusCodes.Status400BadRequest, "Solicitud no válida")
         };
 

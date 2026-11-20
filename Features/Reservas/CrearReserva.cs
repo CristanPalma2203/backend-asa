@@ -1,9 +1,11 @@
+using System.Security.Claims;
 using backend_asa.Common.Endpoints;
 using backend_asa.Common.Http;
 using backend_asa.Common.Results;
 using backend_asa.Common.Validation;
 using backend_asa.Domain;
 using backend_asa.Domain.Enums;
+using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
 using FluentValidation;
 using Microsoft.Data.SqlClient;
@@ -38,17 +40,25 @@ public static class CrearReservaHandler
 {
     public static async Task<Result<CrearReservaResponse>> Handle(
         CrearReservaRequest request,
+        ClaimsPrincipal usuario,
         BibliotecaDbContext db,
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
+        var acceso = Acceso.ResolverLector(usuario, request.LectorId);
+        if (!acceso.IsSuccess)
+        {
+            return Result.Failure<CrearReservaResponse>(acceso.Error!);
+        }
+
+        var lectorId = acceso.Value;
         await using var transaction = await db.Database.BeginTransactionAsync(
             System.Data.IsolationLevel.ReadCommitted,
             cancellationToken);
 
         var lector = await db.Lectores
             .AsNoTracking()
-            .Where(item => item.IdLector == request.LectorId)
+            .Where(item => item.IdLector == lectorId)
             .Select(item => new { item.Estado })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -91,7 +101,7 @@ public static class CrearReservaHandler
         }
 
         var reservaDuplicada = await db.Reservas.AnyAsync(
-            reserva => reserva.IdLector == request.LectorId
+            reserva => reserva.IdLector == lectorId
                 && reserva.Estado == EstadoReserva.Activa
                 && reserva.Ejemplar.IdLibro == request.LibroId,
             cancellationToken);
@@ -126,7 +136,7 @@ public static class CrearReservaHandler
         var ahora = timeProvider.GetUtcNow().UtcDateTime;
         var reserva = new Reserva
         {
-            IdLector = request.LectorId,
+            IdLector = lectorId,
             IdEjemplar = ejemplar.IdEjemplar,
             Estado = EstadoReserva.Activa,
             FechaSolicitud = ahora
@@ -169,11 +179,12 @@ public sealed class CrearReservaEndpoint : IEndpoint
             .WithTags("Reservas")
             .MapPost("", async (
                 CrearReservaRequest request,
+                ClaimsPrincipal usuario,
                 BibliotecaDbContext db,
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await CrearReservaHandler.Handle(request, db, timeProvider, cancellationToken);
+                var result = await CrearReservaHandler.Handle(request, usuario, db, timeProvider, cancellationToken);
                 return result.IsSuccess
                     ? result.ToHttpResult($"/api/reservas/{result.Value!.IdReserva}")
                     : result.ToHttpResult();
@@ -182,6 +193,8 @@ public sealed class CrearReservaEndpoint : IEndpoint
             .Produces<CrearReservaResponse>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
     }

@@ -24,7 +24,8 @@ public sealed class LibrosTests(SqlServerFixture fixture) : IntegrationTest(fixt
     [Fact]
     public async Task Crear_IsbnDuplicado_Devuelve409IsbnDuplicado()
     {
-        var response = await Client.PostAsJsonAsync("/api/libros", new
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
+        var response = await admin.PostAsJsonAsync("/api/libros", new
         {
             isbn = "9788498381498",
             titulo = "Otro título",
@@ -39,7 +40,8 @@ public sealed class LibrosTests(SqlServerFixture fixture) : IntegrationTest(fixt
     [Fact]
     public async Task Crear_IsbnInvalido_Devuelve400()
     {
-        var response = await Client.PostAsJsonAsync("/api/libros", new
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
+        var response = await admin.PostAsJsonAsync("/api/libros", new
         {
             isbn = "123",
             titulo = "Título",
@@ -49,5 +51,20 @@ public sealed class LibrosTests(SqlServerFixture fixture) : IntegrationTest(fixt
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await Codigo(response)).Should().Be("validacion-fallida");
+    }
+
+    [Fact]
+    public async Task Crear_ComoAdmin_Devuelve201()
+    {
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
+        var response = await admin.PostAsJsonAsync("/api/libros", new
+        {
+            isbn = "9780134494166",
+            titulo = "Clean Architecture",
+            autor = "Robert C. Martin",
+            categoria = "Tecnología"
+        }, Json);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 }

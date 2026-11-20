@@ -120,6 +120,7 @@ public sealed class CrearEjemplarEndpoint : IEndpoint
     {
         app.MapGroup("/api/libros/{idLibro:int}/ejemplares")
             .WithTags("Ejemplares")
+            .RequireAuthorization(policy => policy.RequireRole("Admin"))
             .MapPost("", async (
                 int idLibro,
                 CrearEjemplarRequest request,

@@ -5,7 +5,9 @@ public enum ErrorType
     Validation,
     NotFound,
     Conflict,
-    BusinessRule
+    BusinessRule,
+    Unauthorized,
+    Forbidden
 }
 
 public record Error(string Code, string Message, ErrorType Type);

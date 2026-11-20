@@ -70,6 +70,7 @@ public sealed class DesactivarLibroEndpoint : IEndpoint
                 return result.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<DesactivarLibroRequest>>()
+            .RequireAuthorization(policy => policy.RequireRole("Admin"))
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
