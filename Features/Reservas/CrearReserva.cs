@@ -56,9 +56,10 @@ public static class CrearReservaHandler
             System.Data.IsolationLevel.ReadCommitted,
             cancellationToken);
 
+        // Bloquea la fila del lector hasta el commit: serializa las reservas del mismo lector
+        // para que la verificación de reserva duplicada no tenga carrera.
         var lector = await db.Lectores
-            .AsNoTracking()
-            .Where(item => item.IdLector == lectorId)
+            .FromSql($"SELECT * FROM Lectores WITH (UPDLOCK, ROWLOCK) WHERE IdLector = {lectorId}")
             .Select(item => new { item.Estado })
             .FirstOrDefaultAsync(cancellationToken);
 

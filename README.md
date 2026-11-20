@@ -42,6 +42,14 @@ ORDER BY e.CodigoInventario
 
 `UPDLOCK` + `ROWLOCK` bloquean solo esa fila hasta el commit. `READPAST` hace que una transacción concurrente salte la fila bloqueada y tome la siguiente copia libre en vez de esperar. Si no queda ninguna, respondo `409 sin-stock`.
 
+Antes de verificar la reserva duplicada, la misma transacción bloquea la fila del lector:
+
+```sql
+SELECT * FROM Lectores WITH (UPDLOCK, ROWLOCK) WHERE IdLector = {lectorId}
+```
+
+Sin este bloqueo había una carrera: si el mismo lector enviaba varias reservas del mismo libro a la vez, todas veían "no hay reserva activa" y, como `READPAST` les da copias distintas, el índice único no las frenaba y se creaban varias. Con `UPDLOCK` la segunda petición del mismo lector espera a que la primera haga commit y entonces ve su reserva, así que responde `422 reserva-duplicada`. Solo se serializan las reservas del mismo lector; las de lectores distintos no se esperan entre sí. Un test lanza cuatro reservas simultáneas de Ana sobre un libro con tres copias y comprueba un 201, tres `reserva-duplicada` y una sola reserva activa.
+
 Como segunda barrera, `IX_Reservas_IdEjemplar_Activa` es un índice **único filtrado** (`[Estado] = 'Activa'`). Si por cualquier camino se intentara una segunda reserva activa del mismo ejemplar, SQL Server lo rechaza (2601/2627) y respondo `409 ejemplar-ya-reservado`. Un test dispara dos reservas simultáneas de la única copia y comprueba un 201, un 409 y una sola reserva activa.
 
 **Stock calculado.** No guardo un contador. "Disponibles" es el conteo de ejemplares en estado `Disponible`, así nunca se desfasa del estado real de cada copia.
@@ -166,7 +174,7 @@ Necesitan **Docker encendido**: Testcontainers levanta un SQL Server 2022 desech
 dotnet test tests/backend-asa.Tests/backend-asa.Tests.csproj
 ```
 
-Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 27 y cubren:
+Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 28 y cubren:
 
 - **Libros:** listado con datos iniciales, alta como admin, ISBN duplicado e ISBN inválido.
 - **Ejemplares:** código duplicado y que no se pueda inactivar una copia reservada.
@@ -175,7 +183,8 @@ Son tests de integración de punta a punta (HTTP → API → SQL Server real). L
   - cancelar dos veces: la segunda da `422 reserva-no-activa` y no cambia nada;
   - lector inactivo, sin stock y reserva duplicada;
   - 401 sin token y 403 si un lector reserva por otro;
-  - **dos reservas simultáneas de la única copia**.
+  - **dos reservas simultáneas de la única copia**;
+  - **cuatro reservas simultáneas del mismo lector y libro**: un 201 y tres `reserva-duplicada`.
 - **Lectores:** correo duplicado, baja con reservas activas, 403 para un lector, alta con y sin contraseña, y contraseña corta.
 - **Usuarios:** un usuario inactivo no entra.
 - **Contrato:**

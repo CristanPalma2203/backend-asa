@@ -173,11 +173,43 @@ public sealed class ReservasTests(SqlServerFixture fixture) : IntegrationTest(fi
         activas.Should().Be(1);
     }
 
-    private async Task<HttpResponseMessage> ReservarAlMismoTiempo(HttpClient cliente, int lectorId, int libroId, Barrier barrera)
+    [Fact]
+    public async Task Crear_CuatroReservasSimultaneasDelMismoLector_SoloUnaGanaYLasDemasSonDuplicadas()
     {
-        barrera.SignalAndWait(TimeSpan.FromSeconds(30));
-        return await cliente.PostAsJsonAsync("/api/reservas", new { lectorId, libroId }, Json);
+        var libroId = await IdLibro("9788498381498");
+        (await Disponibles(libroId)).Should().Be(3);
+        var lectorId = await IdLector(AnaCorreo);
+        var ana = await LoginAsync(AnaCorreo, AnaPassword);
+
+        using var barrera = new Barrier(4);
+        var intentos = Enumerable.Range(0, 4)
+            .Select(_ => ReservarAlMismoTiempo(ana, lectorId, libroId, barrera))
+            .ToList();
+        var respuestas = await Task.WhenAll(intentos);
+
+        respuestas.Count(respuesta => respuesta.StatusCode == HttpStatusCode.Created).Should().Be(1);
+        var rechazadas = respuestas.Where(respuesta => respuesta.StatusCode != HttpStatusCode.Created).ToList();
+        rechazadas.Should().HaveCount(3);
+        foreach (var rechazada in rechazadas)
+        {
+            rechazada.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+            (await Codigo(rechazada)).Should().Be("reserva-duplicada");
+        }
+
+        var activas = await Fixture.EnDb(db => db.Reservas.CountAsync(reserva =>
+            reserva.IdLector == lectorId
+            && reserva.Ejemplar.IdLibro == libroId
+            && reserva.Estado == EstadoReserva.Activa));
+        activas.Should().Be(1);
+        (await Disponibles(libroId)).Should().Be(2);
     }
+
+    private Task<HttpResponseMessage> ReservarAlMismoTiempo(HttpClient cliente, int lectorId, int libroId, Barrier barrera) =>
+        Task.Run(async () =>
+        {
+            barrera.SignalAndWait(TimeSpan.FromSeconds(30)).Should().BeTrue();
+            return await cliente.PostAsJsonAsync("/api/reservas", new { lectorId, libroId }, Json);
+        });
 
     private async Task<int> IdLibro(string isbn)
     {
