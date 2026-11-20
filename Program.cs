@@ -4,6 +4,7 @@ using backend_asa.Infrastructure.Persistence;
 using backend_asa.Infrastructure.Persistence.Seed;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,19 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddEndpoints();
+builder.Services.AddSingleton(TimeProvider.System);
+
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("frontend", policy =>
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<BibliotecaDbContext>();
 
 builder.Services.AddDbContext<BibliotecaDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("database-asa"))
@@ -34,6 +48,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("frontend");
+
+app.MapHealthChecks("/health").ExcludeFromDescription();
 
 app.MapEndpoints();
 

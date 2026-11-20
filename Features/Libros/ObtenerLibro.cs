@@ -11,7 +11,7 @@ namespace backend_asa.Features.Libros;
 
 public sealed record ObtenerLibroRequest(int Id);
 
-public sealed record ObtenerLibroEjemplar(int Id, string CodigoInventario, EstadoEjemplar Estado);
+public sealed record ObtenerLibroEjemplar(int Id, string CodigoInventario, EstadoEjemplar Estado, string RowVersion);
 
 public sealed record ObtenerLibroResponse(
     int IdLibro,
@@ -43,21 +43,26 @@ public static class ObtenerLibroHandler
         var libro = await db.Libros
             .AsNoTracking()
             .Where(item => item.IdLibro == id)
-            .Select(item => new ObtenerLibroResponse(
+            .Select(item => new
+            {
                 item.IdLibro,
                 item.Isbn,
                 item.Titulo,
                 item.Autor,
                 item.Categoria,
                 item.Estado,
-                item.Ejemplares.Count(ejemplar => ejemplar.Estado == EstadoEjemplar.Disponible),
-                item.Ejemplares
+                Disponibles = item.Ejemplares.Count(ejemplar => ejemplar.Estado == EstadoEjemplar.Disponible),
+                Ejemplares = item.Ejemplares
                     .OrderBy(ejemplar => ejemplar.CodigoInventario)
-                    .Select(ejemplar => new ObtenerLibroEjemplar(
+                    .Select(ejemplar => new
+                    {
                         ejemplar.IdEjemplar,
                         ejemplar.CodigoInventario,
-                        ejemplar.Estado))
-                    .ToList()))
+                        ejemplar.Estado,
+                        ejemplar.RowVersion
+                    })
+                    .ToList()
+            })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (libro is null)
@@ -68,7 +73,21 @@ public static class ObtenerLibroHandler
                 ErrorType.NotFound));
         }
 
-        return Result.Success(libro);
+        return Result.Success(new ObtenerLibroResponse(
+            libro.IdLibro,
+            libro.Isbn,
+            libro.Titulo,
+            libro.Autor,
+            libro.Categoria,
+            libro.Estado,
+            libro.Disponibles,
+            libro.Ejemplares
+                .Select(ejemplar => new ObtenerLibroEjemplar(
+                    ejemplar.IdEjemplar,
+                    ejemplar.CodigoInventario,
+                    ejemplar.Estado,
+                    Convert.ToBase64String(ejemplar.RowVersion)))
+                .ToList()));
     }
 }
 
