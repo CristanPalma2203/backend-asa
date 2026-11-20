@@ -103,6 +103,101 @@ Como segunda barrera, `IX_Reservas_IdEjemplar_Activa` es un índice **único fil
 
 **Checks en la base.** `CK_Libro_Estado`, `CK_Ejemplar_Estado`, `CK_Lector_Estado`, `CK_Reserva_Estado`, `CK_Usuario_Rol`, `CK_Usuario_Estado` y `CK_Reserva_FechaCancelacion` (si el estado es `Cancelada`, la fecha es obligatoria).
 
+## Base de datos
+
+Sacado de `Infrastructure/Persistence/Configurations/*.cs`; los tipos son los que genera la migración. `PK` clave primaria (`int IDENTITY`), `FK` clave foránea, `UK` único.
+
+```mermaid
+erDiagram
+    Libros ||--o{ Ejemplares : "IdLibro"
+    Lectores ||--o{ Reservas : "IdLector"
+    Ejemplares ||--o{ Reservas : "IdEjemplar"
+    Lectores |o--o| Usuarios : "IdLector (único si no es NULL)"
+
+    Libros {
+        int IdLibro PK
+        varchar(20) Isbn UK
+        nvarchar(200) Titulo
+        nvarchar(150) Autor
+        nvarchar(80) Categoria
+        varchar(20) Estado "Activo | Inactivo"
+    }
+
+    Ejemplares {
+        int IdEjemplar PK
+        int IdLibro FK
+        varchar(30) CodigoInventario UK
+        varchar(20) Estado "Disponible | Reservado | Prestado | Inactivo"
+        datetime2 CreatedAt "default SYSUTCDATETIME()"
+        datetime2 UpdatedAt "default SYSUTCDATETIME()"
+        rowversion RowVersion "token de concurrencia optimista"
+    }
+
+    Lectores {
+        int IdLector PK
+        varchar(20) Identificador UK
+        nvarchar(150) Nombre
+        varchar(150) Correo UK
+        varchar(20) Estado "Activo | Inactivo"
+    }
+
+    Reservas {
+        int IdReserva PK
+        int IdLector FK
+        int IdEjemplar FK
+        datetime2 FechaSolicitud "default SYSUTCDATETIME()"
+        varchar(20) Estado "Activa | Cancelada | Completada"
+        datetime2 FechaCancelacion "NULL"
+    }
+
+    Usuarios {
+        int IdUsuario PK
+        varchar(150) Correo UK
+        nvarchar(150) Nombre
+        nvarchar(500) PasswordHash
+        varchar(20) Rol "Admin | Lector"
+        varchar(20) Estado "Activo | Inactivo"
+        int IdLector FK, UK "NULL para el admin"
+        datetime2 CreatedAt "default SYSUTCDATETIME()"
+    }
+```
+
+Todas las FK son `ON DELETE RESTRICT`: no hay borrado físico en cascada, las bajas son lógicas por `Estado`. Un lector tiene a lo sumo un usuario (`IX_Usuarios_IdLector`), y un usuario puede no tener lector (el admin).
+
+**Índices**
+
+| Índice | Tabla | Columnas | Tipo |
+| --- | --- | --- | --- |
+| `IX_Libros_Isbn` | Libros | `Isbn` | Único |
+| `IX_Libros_Estado` | Libros | `Estado` | |
+| `IX_Ejemplares_CodigoInventario` | Ejemplares | `CodigoInventario` | Único |
+| `IX_Ejemplares_IdLibro` | Ejemplares | `IdLibro` | |
+| `IX_Ejemplares_Estado` | Ejemplares | `Estado` | |
+| `IX_Ejemplares_IdLibro_Estado` | Ejemplares | `IdLibro`, `Estado` | Compuesto (conteo de disponibles) |
+| `IX_Lectores_Identificador` | Lectores | `Identificador` | Único |
+| `IX_Lectores_Correo` | Lectores | `Correo` | Único |
+| `IX_Reservas_IdLector` | Reservas | `IdLector` | |
+| `IX_Reservas_IdEjemplar` | Reservas | `IdEjemplar` | |
+| `IX_Reservas_IdEjemplar_Activa` | Reservas | `IdEjemplar` | **Único filtrado** `WHERE [Estado] = 'Activa'`: una sola reserva activa por ejemplar |
+| `IX_Reservas_Estado` | Reservas | `Estado` | |
+| `IX_Usuarios_Correo` | Usuarios | `Correo` | Único |
+| `IX_Usuarios_IdLector` | Usuarios | `IdLector` | Único filtrado `WHERE [IdLector] IS NOT NULL` |
+
+**CHECK**
+
+| Restricción | Tabla | Condición |
+| --- | --- | --- |
+| `CK_Libro_Estado` | Libros | `[Estado] IN ('Activo', 'Inactivo')` |
+| `CK_Ejemplar_Estado` | Ejemplares | `[Estado] IN ('Disponible', 'Reservado', 'Prestado', 'Inactivo')` |
+| `CK_Lector_Estado` | Lectores | `[Estado] IN ('Activo', 'Inactivo')` |
+| `CK_Reserva_Estado` | Reservas | `[Estado] IN ('Activa', 'Cancelada', 'Completada')` |
+| `CK_Reserva_FechaCancelacion` | Reservas | `([Estado] <> 'Cancelada') OR ([FechaCancelacion] IS NOT NULL)` |
+| `CK_Usuario_Rol` | Usuarios | `[Rol] IN ('Admin', 'Lector')` |
+| `CK_Usuario_Estado` | Usuarios | `[Estado] IN ('Activo', 'Inactivo')` |
+
+**Stock disponible.** No existe una columna de stock: `disponibles` es `COUNT(*)` de los `Ejemplares` del libro con `Estado = 'Disponible'`, calculado en cada consulta y apoyado en `IX_Ejemplares_IdLibro_Estado`.
+Reservar, cancelar o desactivar solo cambian el `Estado` de un ejemplar, así que el número no puede desfasarse de las copias reales.
+
 ## Cómo correrlo
 
 ### Visual Studio / IIS Express (Development)
