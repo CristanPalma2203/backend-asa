@@ -45,6 +45,34 @@ public sealed class ReservasTests(SqlServerFixture fixture) : IntegrationTest(fi
     }
 
     [Fact]
+    public async Task Cancelar_DosVeces_SegundaVezSeRechazaYNoCambiaNada()
+    {
+        var libroId = await IdLibro("9788498381498");
+        var lectorId = await IdLector(AnaCorreo);
+        var ana = await LoginAsync(AnaCorreo, AnaPassword);
+        var reserva = await ana.PostAsJsonAsync("/api/reservas", new { lectorId, libroId }, Json);
+        var creada = await LeerJson(reserva);
+        var idReserva = creada.GetProperty("idReserva").GetInt32();
+        var ejemplarId = creada.GetProperty("idEjemplar").GetInt32();
+        var primera = await ana.PostAsync($"/api/reservas/{idReserva}/cancelar", null);
+        primera.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var fechaCancelacion = await FechaCancelacionDe(idReserva);
+
+        var segunda = await ana.PostAsync($"/api/reservas/{idReserva}/cancelar", null);
+
+        segunda.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        (await Codigo(segunda)).Should().Be("reserva-no-activa");
+        var guardada = await Fixture.EnDb(db => db.Reservas
+            .Where(item => item.IdReserva == idReserva)
+            .Select(item => new { item.Estado, item.FechaCancelacion })
+            .SingleAsync());
+        guardada.Estado.Should().Be(EstadoReserva.Cancelada);
+        guardada.FechaCancelacion.Should().NotBeNull().And.Be(fechaCancelacion);
+        (await EstadoEjemplarDe(libroId, ejemplarId)).Should().Be((int)EstadoEjemplar.Disponible);
+        (await Disponibles(libroId)).Should().Be(3);
+    }
+
+    [Fact]
     public async Task Crear_LectorInactivo_Devuelve422()
     {
         var libroId = await IdLibro("9788498381498");
@@ -176,6 +204,12 @@ public sealed class ReservasTests(SqlServerFixture fixture) : IntegrationTest(fi
             .GetProperty("disponibles")
             .GetInt32();
     }
+
+    private async Task<DateTime?> FechaCancelacionDe(int idReserva) =>
+        await Fixture.EnDb(db => db.Reservas
+            .Where(reserva => reserva.IdReserva == idReserva)
+            .Select(reserva => reserva.FechaCancelacion)
+            .SingleAsync());
 
     private async Task<int> EstadoEjemplarDe(int libroId, int ejemplarId)
     {

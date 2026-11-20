@@ -166,12 +166,13 @@ Necesitan **Docker encendido**: Testcontainers levanta un SQL Server 2022 desech
 dotnet test tests/backend-asa.Tests/backend-asa.Tests.csproj
 ```
 
-Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 26 y cubren:
+Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 27 y cubren:
 
 - **Libros:** listado con datos iniciales, alta como admin, ISBN duplicado e ISBN inválido.
 - **Ejemplares:** código duplicado y que no se pueda inactivar una copia reservada.
 - **Reservas:**
   - stock al reservar y al cancelar;
+  - cancelar dos veces: la segunda da `422 reserva-no-activa` y no cambia nada;
   - lector inactivo, sin stock y reserva duplicada;
   - 401 sin token y 403 si un lector reserva por otro;
   - **dos reservas simultáneas de la única copia**.
