@@ -117,7 +117,7 @@ El token lleva `sub`, `email`, `role` y, si el usuario tiene lector, `lector_id`
 | --- | --- | --- | --- |
 | POST | /api/auth/login | Público | Entrega el JWT |
 | GET | /api/auth/me | Autenticado | Rol, nombre y lector del token |
-| GET | /api/libros | Público | Libros activos paginados (`buscar`, `categoria`, `page`, `pageSize`) |
+| GET | /api/libros | Público | Libros activos paginados. `buscar` (o su alias `search`): contiene, en título, autor o ISBN. `autor`: contiene, sin distinguir mayúsculas. `categoria`: exacta. `page`, `pageSize` |
 | GET | /api/libros/{id} | Público | Detalle, disponibles y ejemplares |
 | POST | /api/libros | Admin | Crea un libro |
 | PUT | /api/libros/{id} | Admin | Edita ISBN, título, autor y categoría |
@@ -176,9 +176,9 @@ Necesitan **Docker encendido**: Testcontainers levanta un SQL Server 2022 desech
 dotnet test tests/backend-asa.Tests/backend-asa.Tests.csproj
 ```
 
-Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 30 y cubren:
+Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 32 y cubren:
 
-- **Libros:** listado con datos iniciales, alta como admin, ISBN duplicado e ISBN inválido.
+- **Libros:** listado con datos iniciales, `search` como alias de `buscar`, filtro `autor` sin distinguir mayúsculas, alta como admin, ISBN duplicado e ISBN inválido.
 - **Ejemplares:** código duplicado, que no se pueda inactivar una copia reservada, editar con `rowVersion` vieja (`409 conflicto-concurrencia`) y desactivar una copia sin borrarla.
 - **Reservas:**
   - stock al reservar y al cancelar;

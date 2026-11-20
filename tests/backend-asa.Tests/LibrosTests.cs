@@ -22,6 +22,29 @@ public sealed class LibrosTests(SqlServerFixture fixture) : IntegrationTest(fixt
     }
 
     [Fact]
+    public async Task Listar_ConSearch_FuncionaComoBuscarEnTituloAutorEIsbn()
+    {
+        var porIsbn = await Titulos("/api/libros?search=9780062&page=1&pageSize=50");
+        var porAutor = await Titulos("/api/libros?search=harari&page=1&pageSize=50");
+        var porTitulo = await Titulos("/api/libros?search=hobbit&page=1&pageSize=50");
+
+        porIsbn.Should().Equal("Homo Deus", "Sapiens");
+        porAutor.Should().Equal("Homo Deus", "Sapiens");
+        porTitulo.Should().Equal("El hobbit");
+        porIsbn.Should().Equal(await Titulos("/api/libros?buscar=9780062&page=1&pageSize=50"));
+    }
+
+    [Fact]
+    public async Task Listar_ConAutor_FiltraPorAutorSinDistinguirMayusculas()
+    {
+        var harari = await Titulos("/api/libros?autor=HARARI&page=1&pageSize=50");
+        var porTitulo = await Titulos("/api/libros?autor=hobbit&page=1&pageSize=50");
+
+        harari.Should().Equal("Homo Deus", "Sapiens");
+        porTitulo.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Crear_IsbnDuplicado_Devuelve409IsbnDuplicado()
     {
         var admin = await LoginAsync(AdminCorreo, AdminPassword);
@@ -66,5 +89,15 @@ public sealed class LibrosTests(SqlServerFixture fixture) : IntegrationTest(fixt
         }, Json);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    private async Task<List<string>> Titulos(string url)
+    {
+        var response = await Client.GetAsync(url);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var json = await LeerJson(response);
+        return json.GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("titulo").GetString()!)
+            .ToList();
     }
 }

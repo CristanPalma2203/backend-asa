@@ -10,7 +10,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Libros;
 
-public sealed record ListarLibrosRequest(string? Buscar, string? Categoria, int Page = 1, int PageSize = 10);
+public sealed record ListarLibrosRequest(
+    string? Buscar,
+    string? Search,
+    string? Autor,
+    string? Categoria,
+    int Page = 1,
+    int PageSize = 10)
+{
+    // `search` es un alias de `buscar`; si llegan los dos, manda `buscar`.
+    public string? TextoBuscado => string.IsNullOrWhiteSpace(Buscar) ? Search : Buscar;
+}
 
 public sealed record ListarLibrosItem(
     int IdLibro,
@@ -30,6 +40,16 @@ public sealed class ListarLibrosValidator : AbstractValidator<ListarLibrosReques
             .WithMessage("La búsqueda no puede superar 200 caracteres.")
             .When(x => x.Buscar is not null);
 
+        RuleFor(x => x.Search)
+            .MaximumLength(200)
+            .WithMessage("La búsqueda no puede superar 200 caracteres.")
+            .When(x => x.Search is not null);
+
+        RuleFor(x => x.Autor)
+            .MaximumLength(150)
+            .WithMessage("El autor no puede superar 150 caracteres.")
+            .When(x => x.Autor is not null);
+
         RuleFor(x => x.Categoria)
             .MaximumLength(100)
             .WithMessage("La categoría no puede superar 100 caracteres.")
@@ -48,13 +68,20 @@ public static class ListarLibrosHandler
             .AsNoTracking()
             .Where(libro => libro.Estado == EstadoLibro.Activo);
 
-        if (!string.IsNullOrWhiteSpace(request.Buscar))
+        if (!string.IsNullOrWhiteSpace(request.TextoBuscado))
         {
-            var buscar = request.Buscar.Trim();
+            var buscar = request.TextoBuscado.Trim();
             query = query.Where(libro =>
                 libro.Titulo.Contains(buscar) ||
                 libro.Autor.Contains(buscar) ||
                 libro.Isbn.Contains(buscar));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Autor))
+        {
+            // LOWER en ambos lados: no distingue mayúsculas aunque la columna tenga collation CS.
+            var autor = request.Autor.Trim().ToLowerInvariant();
+            query = query.Where(libro => libro.Autor.ToLower().Contains(autor));
         }
 
         if (!string.IsNullOrWhiteSpace(request.Categoria))
