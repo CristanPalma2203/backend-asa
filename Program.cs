@@ -121,11 +121,20 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
+// En Development siempre migro y siembro. Fuera de Development solo si Database:MigrateOnStartup=true
+// (lo activa docker-compose); en un despliegue real se aplica scripts/migrations.sql.
+var migrarAlArrancar = app.Environment.IsDevelopment()
+    || app.Configuration.GetValue<bool>("Database:MigrateOnStartup");
+
+if (migrarAlArrancar)
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<BibliotecaDbContext>();
     await db.Database.MigrateAsync();
+}
+
+if (app.Environment.IsDevelopment())
+{
     app.MapOpenApi().AllowAnonymous();
     app.MapScalarApiReference(o => o.WithTitle("backend-asa API")).AllowAnonymous();
     app.MapGet("/", () => Results.Redirect("/scalar")).AllowAnonymous().ExcludeFromDescription();
