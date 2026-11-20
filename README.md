@@ -355,6 +355,35 @@ Las migraciones están en `Infrastructure/Persistence/Migrations`. Las aplico de
 
    Se regenera con `dotnet ef migrations script --idempotent -o scripts/migrations.sql`.
 
+## Despliegue
+
+### Imagen (GitHub Actions)
+
+`.github/workflows/deploy.yml` construye y publica la imagen. No despliega nada en Azure. Se dispara con cada push a `main`, y a mano desde **Actions → Build y push de la imagen a GHCR → Run workflow**.
+
+1. **Tests:** corre `dotnet test` (Testcontainers usa el Docker del runner). Si fallan, no se publica la imagen.
+2. **Imagen:** construye el `Dockerfile` y la sube a GHCR con dos tags: `ghcr.io/cristanpalma2203/backend-asa:latest` y `:<sha del commit>`. Usa el `GITHUB_TOKEN` (`packages: write`): no hay que crear secrets.
+
+La imagen solo se publica desde `main`. Si se lanza a mano desde otra rama, solo corren los tests. El tag con el SHA queda para saber qué commit hay en cada imagen y para volver a una versión anterior si hace falta.
+
+### Container App en Azure
+
+La Container App `ca-asa-backend-test` (resource group `asa-test`) usa la imagen `ghcr.io/cristanpalma2203/backend-asa:latest`. Escucha en el puerto `8080` (`ASPNETCORE_HTTP_PORTS=8080`), que es el *target port* del ingress. Las variables de entorno y los secrets se configuran en Azure, no en este repo.
+
+Cuando el workflow publica una imagen nueva, la Container App no se actualiza sola. Para desplegarla, desde el portal de Azure:
+
+- **Reiniciar la revisión activa:** **Container App → Revisions and replicas → revisión activa → Restart**.
+- **Crear una nueva revisión:** **Container App → Application → Revisions and replicas → Create new revision** (o **Edit and deploy**), dejar la imagen `:latest` y **Create**.
+
+Si después de reiniciar sigue respondiendo la versión anterior, crear una nueva revisión: así la Container App vuelve a descargar `:latest`.
+
+Para comprobar qué versión quedó, se puede comparar el digest de la imagen de la revisión con el del último run del workflow, o probar `GET /health` y algún endpoint que haya cambiado.
+
+### Antes del primer despliegue
+
+- **Acceso de la Container App a GHCR.** Los paquetes nuevos de GHCR son privados. Hay dos opciones: hacer público el paquete (**Packages → backend-asa → Package settings → Change visibility**), o registrar `ghcr.io` en la Container App con un PAT de solo lectura (`read:packages`), en **Settings → Registries** del portal. Si no, la revisión no puede descargar la imagen.
+- **Migraciones.** Ni el workflow ni el reinicio tocan la base. Los cambios de esquema se aplican con `scripts/migrations.sql` (idempotente), o con `Database__MigrateOnStartup=true` en la configuración de la Container App.
+
 ## Supuestos
 
 - Una reserva asigna una copia concreta al momento. No hay cola de espera: sin copias libres, la respuesta es `sin-stock`.
