@@ -20,7 +20,7 @@ public sealed class ReservasTests(SqlServerFixture fixture) : IntegrationTest(fi
         reserva.StatusCode.Should().Be(HttpStatusCode.Created);
         var creada = await LeerJson(reserva);
         var ejemplarId = creada.GetProperty("idEjemplar").GetInt32();
-        creada.GetProperty("estado").GetInt32().Should().Be((int)EstadoReserva.Activa);
+        creada.GetProperty("estado").GetString().Should().Be("Activa");
 
         (await Disponibles(libroId)).Should().Be(2);
         (await EstadoEjemplarDe(libroId, ejemplarId)).Should().Be((int)EstadoEjemplar.Reservado);

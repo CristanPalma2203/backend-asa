@@ -39,6 +39,10 @@ public sealed class CrearLectorValidator : AbstractValidator<CrearLectorRequest>
             .NotEmpty().WithMessage("El correo es obligatorio.")
             .MaximumLength(150).WithMessage("El correo no puede superar 150 caracteres.")
             .EmailAddress().WithMessage("El correo no es válido.");
+
+        RuleFor(x => x.Password)
+            .MinimumLength(8).WithMessage("La contraseña debe tener al menos 8 caracteres.")
+            .When(x => !string.IsNullOrWhiteSpace(x.Password));
     }
 }
 

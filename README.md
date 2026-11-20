@@ -74,6 +74,14 @@ ORDER BY e.CodigoInventario
 
 Cancelar va en la misma transacción: la reserva pasa a `Cancelada` con `FechaCancelacion` en UTC y el ejemplar vuelve a `Disponible`. Un solo commit. Si falla, el `await using` hace rollback.
 
+## Contrato JSON
+
+- Los enums viajan como texto: `"estado": "Activa"`, no `0`. Uso `JsonStringEnumConverter` en `ConfigureHttpJsonOptions` y el OpenAPI los declara `type: string` con sus valores. Al escribir, la API todavía acepta el número, pero el contrato es el texto.
+- Las fechas salen en UTC, ISO 8601 con `Z` (`2026-11-20T15:04:05.123Z`). Un `ValueConverter` global en `ConfigureConventions` marca como `Utc` todo `DateTime` leído de SQL Server, y los handlers guardan con `TimeProvider.GetUtcNow()`.
+- La reserva expone `fechaSolicitud`, igual que la entidad, tanto al crearla como en el detalle y el listado.
+- Los ejemplares se identifican con `idEjemplar` en `GET /api/libros/{id}` y en `GET /api/libros/{idLibro}/ejemplares`.
+- `POST /api/lectores`: si viene `password`, debe tener al menos 8 caracteres. Sin `password` (o en blanco) se crea el lector sin usuario.
+
 ## Errores
 
 Respondo `ProblemDetails`. El código va en `code`, en kebab-case.
@@ -141,7 +149,7 @@ dotnet test tests/backend-asa.Tests/backend-asa.Tests.csproj
 
 Levantan SQL Server en Testcontainers, migran, siembran y Respawn limpia entre tests.
 
-Cubro listado y alta de libros, ejemplar duplicado, no inactivar una copia reservada, stock al reservar y al cancelar, lector inactivo, sin stock, reserva duplicada, 401 sin token, 403 si un lector reserva por otro, alta de libro como admin, y que el modelo no tenga cambios pendientes.
+Cubro listado y alta de libros, ejemplar duplicado, no inactivar una copia reservada, stock al reservar y al cancelar, lector inactivo, sin stock, reserva duplicada, 401 sin token, 403 si un lector reserva por otro, alta de libro como admin, contraseña corta al crear lector, enums como texto en JSON y en OpenAPI, `fechaSolicitud` en UTC con `Z`, `idEjemplar` en detalle y listado, y que el modelo no tenga cambios pendientes.
 
 El de concurrencia deja un libro con una sola copia disponible, dispara dos `POST /api/reservas` a la vez y comprueba un 201, un 409 y una sola reserva `Activa` de ese ejemplar.
 

@@ -1,5 +1,6 @@
 using backend_asa.Common.Endpoints;
 using backend_asa.Common.Http;
+using backend_asa.Common.OpenApi;
 using backend_asa.Domain;
 using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
@@ -13,6 +14,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -81,7 +83,14 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 
-builder.Services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+    options.AddSchemaTransformer<EnumComoStringSchemaTransformer>();
+});
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

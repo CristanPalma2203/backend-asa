@@ -20,7 +20,7 @@ public sealed record CrearReservaResponse(
     int IdEjemplar,
     string CodigoInventario,
     EstadoReserva Estado,
-    DateTime FechaReserva);
+    DateTime FechaSolicitud);
 
 public sealed class CrearReservaValidator : AbstractValidator<CrearReservaRequest>
 {

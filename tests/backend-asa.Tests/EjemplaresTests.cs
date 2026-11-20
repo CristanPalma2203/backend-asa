@@ -46,7 +46,7 @@ public sealed class EjemplaresTests(SqlServerFixture fixture) : IntegrationTest(
 
         var cambio = await admin.PutAsJsonAsync(
             $"/api/libros/{libroId}/ejemplares/{ejemplarId}/estado",
-            new { estado = EstadoEjemplar.Inactivo, rowVersion },
+            new { estado = "Inactivo", rowVersion },
             Json);
 
         cambio.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);

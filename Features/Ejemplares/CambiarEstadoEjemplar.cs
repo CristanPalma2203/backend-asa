@@ -58,6 +58,7 @@ public static class CambiarEstadoEjemplarHandler
         int idEjemplar,
         CambiarEstadoEjemplarRequest request,
         BibliotecaDbContext db,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         if (request.Estado is not (EstadoEjemplar.Disponible or EstadoEjemplar.Inactivo))
@@ -104,7 +105,7 @@ public static class CambiarEstadoEjemplarHandler
         RowVersionToken.TryRead(request.RowVersion, out var rowVersion);
         db.Entry(ejemplar).Property(item => item.RowVersion).OriginalValue = rowVersion;
         ejemplar.Estado = request.Estado;
-        ejemplar.UpdatedAt = DateTime.UtcNow;
+        ejemplar.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
@@ -122,9 +123,10 @@ public sealed class CambiarEstadoEjemplarEndpoint : IEndpoint
                 int idEjemplar,
                 CambiarEstadoEjemplarRequest request,
                 BibliotecaDbContext db,
+                TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await CambiarEstadoEjemplarHandler.Handle(idLibro, idEjemplar, request, db, cancellationToken);
+                var result = await CambiarEstadoEjemplarHandler.Handle(idLibro, idEjemplar, request, db, timeProvider, cancellationToken);
                 return result.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<CambiarEstadoEjemplarRequest>>()

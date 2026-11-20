@@ -42,6 +42,7 @@ public static class CrearEjemplarHandler
         int idLibro,
         CrearEjemplarRequest request,
         BibliotecaDbContext db,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         var libro = await db.Libros
@@ -76,7 +77,7 @@ public static class CrearEjemplarHandler
             return CodigoDuplicado();
         }
 
-        var ahora = DateTime.UtcNow;
+        var ahora = timeProvider.GetUtcNow().UtcDateTime;
         var ejemplar = new Ejemplar
         {
             IdLibro = idLibro,
@@ -125,9 +126,10 @@ public sealed class CrearEjemplarEndpoint : IEndpoint
                 int idLibro,
                 CrearEjemplarRequest request,
                 BibliotecaDbContext db,
+                TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await CrearEjemplarHandler.Handle(idLibro, request, db, cancellationToken);
+                var result = await CrearEjemplarHandler.Handle(idLibro, request, db, timeProvider, cancellationToken);
                 return result.IsSuccess
                     ? result.ToHttpResult($"/api/libros/{idLibro}/ejemplares/{result.Value!.IdEjemplar}")
                     : result.ToHttpResult();

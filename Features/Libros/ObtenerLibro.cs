@@ -11,7 +11,7 @@ namespace backend_asa.Features.Libros;
 
 public sealed record ObtenerLibroRequest(int Id);
 
-public sealed record ObtenerLibroEjemplar(int Id, string CodigoInventario, EstadoEjemplar Estado, string RowVersion);
+public sealed record ObtenerLibroEjemplar(int IdEjemplar, string CodigoInventario, EstadoEjemplar Estado, string RowVersion);
 
 public sealed record ObtenerLibroResponse(
     int IdLibro,

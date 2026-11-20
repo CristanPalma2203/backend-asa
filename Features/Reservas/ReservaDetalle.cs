@@ -8,5 +8,5 @@ public sealed record ReservaDetalle(
     string Titulo,
     string CodigoInventario,
     EstadoReserva Estado,
-    DateTime FechaReserva,
+    DateTime FechaSolicitud,
     DateTime? FechaCancelacion);
