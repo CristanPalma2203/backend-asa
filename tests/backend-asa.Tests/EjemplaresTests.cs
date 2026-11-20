@@ -1,0 +1,69 @@
+using System.Net;
+using System.Net.Http.Json;
+using backend_asa.Domain.Enums;
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+
+namespace backend_asa.Tests;
+
+public sealed class EjemplaresTests(SqlServerFixture fixture) : IntegrationTest(fixture)
+{
+    [Fact]
+    public async Task Crear_CodigoDuplicado_Devuelve409()
+    {
+        var libroId = await IdLibro("9788498381498");
+        var response = await Client.PostAsJsonAsync($"/api/libros/{libroId}/ejemplares", new
+        {
+            codigoInventario = "BIB-001"
+        }, Json);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await Codigo(response)).Should().Be("codigo-inventario-duplicado");
+    }
+
+    [Fact]
+    public async Task CambiarEstado_EjemplarReservado_Devuelve422()
+    {
+        var libroId = await IdLibro("9788498381498");
+        var lectorId = await IdLector("ana.lopez@demo.local");
+        var reserva = await Client.PostAsJsonAsync("/api/reservas", new
+        {
+            lectorId,
+            libroId
+        }, Json);
+        reserva.StatusCode.Should().Be(HttpStatusCode.Created);
+        var creada = await LeerJson(reserva);
+        var ejemplarId = creada.GetProperty("idEjemplar").GetInt32();
+
+        var ejemplares = await Client.GetAsync($"/api/libros/{libroId}/ejemplares");
+        var lista = await LeerJson(ejemplares);
+        var rowVersion = lista.EnumerateArray()
+            .Single(item => item.GetProperty("idEjemplar").GetInt32() == ejemplarId)
+            .GetProperty("rowVersion")
+            .GetString();
+
+        var cambio = await Client.PutAsJsonAsync(
+            $"/api/libros/{libroId}/ejemplares/{ejemplarId}/estado",
+            new { estado = EstadoEjemplar.Inactivo, rowVersion },
+            Json);
+
+        cambio.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        (await Codigo(cambio)).Should().Be("ejemplar-reservado");
+    }
+
+    private async Task<int> IdLibro(string isbn)
+    {
+        var response = await Client.GetAsync("/api/libros?page=1&pageSize=50");
+        var json = await LeerJson(response);
+        return json.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("isbn").GetString() == isbn)
+            .GetProperty("idLibro")
+            .GetInt32();
+    }
+
+    private async Task<int> IdLector(string correo) =>
+        await Fixture.EnDb(db => db.Lectores
+            .Where(lector => lector.Correo == correo)
+            .Select(lector => lector.IdLector)
+            .SingleAsync());
+}

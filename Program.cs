@@ -56,3 +56,5 @@ app.MapHealthChecks("/health").ExcludeFromDescription();
 app.MapEndpoints();
 
 app.Run();
+
+public partial class Program { }
