@@ -1,6 +1,12 @@
+using backend_asa.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+
+builder.Services.AddDbContext<BibliotecaDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("database-asa")));
 
 var app = builder.Build();
 
