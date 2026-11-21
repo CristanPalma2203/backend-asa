@@ -32,17 +32,27 @@ public sealed class SqlServerFixture : IAsyncLifetime
         };
         ConnectionString = builder.ConnectionString;
 
+        // Valores solo de test: los tests no dependen de appsettings.Development.json.
+        // Las contraseñas coinciden con IntegrationTest.AdminPassword / AnaPassword.
+        var settings = new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:database-asa"] = ConnectionString,
+            ["Cors:AllowedOrigins:0"] = "http://localhost:5173",
+            ["Jwt:Key"] = "clave-jwt-solo-para-tests-de-integracion-0123456789",
+            ["Seed:AdminPassword"] = "Admin-demo-123",
+            ["Seed:LectorPassword"] = "Ana-demo-123"
+        };
+
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
         {
-            host.UseSetting("ConnectionStrings:database-asa", ConnectionString);
-            host.ConfigureAppConfiguration((_, config) =>
+            // Program.cs lee Jwt:Key y Seed:* de builder.Configuration antes de Build();
+            // UseSetting llega a esa configuración temprana y AddInMemoryCollection a la final.
+            foreach (var (key, value) in settings)
             {
-                config.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:database-asa"] = ConnectionString,
-                    ["Cors:AllowedOrigins:0"] = "http://localhost:5173"
-                });
-            });
+                host.UseSetting(key, value);
+            }
+
+            host.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(settings));
         });
 
         Client = Factory.CreateClient();

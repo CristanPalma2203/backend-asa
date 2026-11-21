@@ -139,7 +139,9 @@ if (migrarAlArrancar)
     await db.Database.MigrateAsync();
 }
 
-if (app.Environment.IsDevelopment())
+// OpenAPI y Scalar: siempre en Development; en otros entornos solo con Docs:Enabled=true
+// (por ejemplo, para que un evaluador explore la API desplegada). Por defecto está apagado.
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Docs:Enabled"))
 {
     app.MapOpenApi().AllowAnonymous();
     app.MapScalarApiReference(o => o.WithTitle("backend-asa API")).AllowAnonymous();
