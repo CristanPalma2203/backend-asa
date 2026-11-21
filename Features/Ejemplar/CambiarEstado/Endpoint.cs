@@ -1,6 +1,7 @@
 using backend_asa.Common.Endpoints;
 using backend_asa.Common.Http;
 using backend_asa.Common.Validation;
+using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
 
 namespace backend_asa.Features.Ejemplar.CambiarEstado;
@@ -11,7 +12,7 @@ public sealed class CambiarEstadoEjemplarEndpoint : IEndpoint
     {
         app.MapGroup("/api/libros/{idLibro:int}/ejemplares")
             .WithTags("Ejemplares")
-            .RequireAuthorization(policy => policy.RequireRole("Admin"))
+            .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))
             .MapPut("/{idEjemplar:int}/estado", async (
                 int idLibro,
                 int idEjemplar,
