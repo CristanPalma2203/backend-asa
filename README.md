@@ -218,6 +218,8 @@ Después del `cp` y antes del `up`, edita en `.env` las variables `MSSQL_SA_PASS
 
 La API queda en http://localhost:8080 (health check en `/health`).
 
+Para quitar libros, lectores y reservas de QA sin tocar el seed, usa `scripts/limpieza-datos-prueba.sql`. Primero en modo de prueba (`@Confirmar = 0`, hace `ROLLBACK`). El detalle de Docker y Azure SQL está en `scripts/README.md`.
+
 **Con Visual Studio o `dotnet run`** (requiere .NET 10 SDK y SQL Server local):
 
 1. Revisar la cadena de conexión en `appsettings.Development.json` (por defecto `Server=localhost;Database=database-asa;Integrated Security=True`).
