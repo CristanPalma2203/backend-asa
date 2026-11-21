@@ -1,9 +1,9 @@
 using System.Security.Claims;
+using backend_asa.Common.Persistence;
 using backend_asa.Common.Results;
 using backend_asa.Domain.Enums;
 using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
-using backend_asa.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Reserva.Crear;
@@ -107,7 +107,9 @@ public static class CrearReservaHandler
                 $"""
                 SELECT TOP (1) e.*
                 FROM Ejemplares AS e WITH (UPDLOCK, READPAST, ROWLOCK)
-                WHERE e.IdLibro = {request.LibroId} AND e.Estado = 'Disponible'
+                WHERE e.IdLibro = {request.LibroId}
+                  AND e.Estado = 'Disponible'
+                  AND EXISTS (SELECT 1 FROM Libros AS l WHERE l.IdLibro = e.IdLibro AND l.Estado = 'Activo')
                 ORDER BY e.CodigoInventario
                 """)
             .FirstOrDefaultAsync(cancellationToken);

@@ -17,11 +17,6 @@ Frontend: [frontend-asa](https://github.com/CristanPalma2203/frontend-asa).
 | Admin | admin@demo.local | admin | Gestiona libros, ejemplares y lectores; reserva y cancela para cualquier lector |
 | Lector | ana.lopez@demo.local | user | Ve el catálogo, reserva a su nombre y ve o cancela sus reservas |
 
-Estas contraseñas son las del entorno en vivo. En local los correos son los mismos, pero las contraseñas cambian:
-
-- **Con `dotnet run` / Visual Studio:** `Admin-demo-123` (admin) y `Ana-demo-123` (lector), definidas en `appsettings.Development.json`.
-- **Con Docker Compose:** las que pongas en `SEED_ADMIN_PASSWORD` y `SEED_LECTOR_PASSWORD` de tu `.env`.
-
 ## Stack
 
 - .NET 10 (minimal APIs) y EF Core 10 sobre SQL Server 2022.
@@ -38,24 +33,18 @@ Features/
 ├── Auth/      Login, Me
 ├── Libro/     Crear, Editar, Desactivar, Listar, Obtener
 ├── Ejemplar/  Crear, Editar, Desactivar, CambiarEstado, Listar
-├── Lector/    Crear, Editar, Desactivar, Listar, Obtener
-└── Reserva/   Crear, Cancelar, Obtener, ListarPorLector
+├── Lector/    Crear, Editar, Activar, Desactivar, Listar, Obtener
+├── Reserva/   Crear, Cancelar, Obtener, ListarPorLector
+└── Resumen/   Obtener
 ```
 
 El resto: `Common/` (Result, ProblemDetails, validación, paginación), `Domain/` (entidades), `Infrastructure/` (EF Core, migraciones, seed), `tests/`.
 
 ## Decisiones clave
 
-**Concurrencia de reservas.** Reservar abre una transacción y toma la primera copia libre con `UPDLOCK, READPAST`: la fila queda bloqueada hasta el commit, y una reserva simultánea salta a la siguiente copia en vez de esperar. Si no queda ninguna, responde `409 sin-stock`.
-
-```sql
-SELECT TOP (1) * FROM Ejemplares WITH (UPDLOCK, READPAST, ROWLOCK)
-WHERE IdLibro = @libroId AND Estado = 'Disponible' ORDER BY CodigoInventario
-```
+**Concurrencia de reservas.** La reserva toma una copia disponible con bloqueo de fila y salta las que otra transacción tiene tomadas; si no queda ninguna, responde `409 sin-stock`. El índice único filtrado `IX_Reservas_IdEjemplar_Activa` garantiza en la base una sola reserva activa por copia.
 
 **Bloqueo del lector.** Antes de comprobar si el lector ya tiene una reserva activa de ese libro, bloquea su fila (`SELECT * FROM Lectores WITH (UPDLOCK, ROWLOCK) WHERE IdLector = @id`). Así dos peticiones simultáneas del mismo lector se ordenan, y la segunda recibe `422 reserva-duplicada`. Lectores distintos no se esperan entre sí.
-
-**Índice único filtrado como segunda barrera.** `IX_Reservas_IdEjemplar_Activa` (único, `WHERE Estado = 'Activa'`) impide en la propia base dos reservas activas del mismo ejemplar. Si algo se escapara del código, SQL Server lo rechaza y la API responde `409 ejemplar-ya-reservado`.
 
 **Stock calculado.** No hay columna de stock: "disponibles" es el conteo de ejemplares en estado `Disponible`. Reservar o cancelar solo cambia el estado de una copia, así que el número nunca se desfasa.
 
@@ -139,6 +128,14 @@ Todas las bajas son lógicas (por `Estado`) y las FK no borran en cascada.
 
 </details>
 
+## Datos de prueba (seed)
+
+Al arrancar se cargan, si no existen:
+
+- **25 libros activos** en Novela, Clásicos, Historia, Ciencia, Infantil y Tecnología, con 51 ejemplares (`BIB-001` a `BIB-051`). El Principito tiene `BIB-001` a `BIB-003`; las dos copias de Don Quijote están inactivas, así que no tiene stock.
+- **Lectores:** Ana López (`LEC-ANA-001`, activa) y Carlos Méndez (`LEC-CARLOS-001`, inactivo, sin usuario).
+- **Usuarios:** `admin@demo.local` (Admin) y `ana.lopez@demo.local` (Lector, ligado a Ana). Se crean solo si están configuradas sus contraseñas (`Seed:AdminPassword` y `Seed:LectorPassword`).
+
 ## Endpoints
 
 | Método | Ruta | Quién | Qué hace |
@@ -207,23 +204,9 @@ Todas las bajas son lógicas (por `Estado`) y las FK no borran en cascada.
 
 ## Correrlo en local
 
-**Con Docker Compose** (requiere Docker Desktop):
+**Con Docker Compose:** `cp .env.example .env`, completa las variables marcadas y ejecuta `docker compose up --build`. La API queda en http://localhost:8080.
 
-```bash
-cp .env.example .env
-docker compose up --build
-```
-
-Después del `cp` y antes del `up`, edita en `.env` las variables `MSSQL_SA_PASSWORD`, `JWT_KEY`, `SEED_ADMIN_PASSWORD` y `SEED_LECTOR_PASSWORD`, que traen marcadores (`CAMBIAR…` / `<COMPLETAR>`).
-
-La API queda en http://localhost:8080 (health check en `/health`).
-
-Para quitar libros, lectores y reservas de QA sin tocar el seed, usa `scripts/limpieza-datos-prueba.sql`. Primero en modo de prueba (`@Confirmar = 0`, hace `ROLLBACK`). El detalle de Docker y Azure SQL está en `scripts/README.md`.
-
-**Con Visual Studio o `dotnet run`** (requiere .NET 10 SDK y SQL Server local):
-
-1. Revisar la cadena de conexión en `appsettings.Development.json` (por defecto `Server=localhost;Database=database-asa;Integrated Security=True`).
-2. Abrir `backend-asa.slnx` y arrancar, o ejecutar `dotnet run --launch-profile https`. Al arrancar crea la base y carga los datos de ejemplo. Scalar queda en `/scalar`.
+**Con Visual Studio o `dotnet run`:** revisa la cadena de conexión en `appsettings.Development.json` y arranca. Crea la base y carga los datos al iniciar. Scalar queda en `/scalar`.
 
 ## Tests
 
@@ -236,6 +219,7 @@ Necesitan Docker encendido: cada ejecución levanta un SQL Server real y desecha
 - **Dos reservas simultáneas de la única copia:** un 201, un 409 y una sola reserva activa.
 - **Cuatro reservas simultáneas del mismo lector y libro:** un 201 y tres `reserva-duplicada`.
 - Stock al reservar y cancelar, sin stock, lector inactivo, cancelar dos veces.
+- **Dos cancelaciones simultáneas:** la segunda recibe `reserva-no-activa`. **Desactivar un libro mientras se reserva:** nunca queda un libro inactivo con una reserva activa.
 - Autenticación y permisos (401, 403), validaciones y duplicados.
 - Reactivar un lector (vuelve a poder entrar, es idempotente, 404 y 403) y que el total de ejemplares cuente solo los activos.
 - Headers de seguridad (`nosniff`, `DENY`, `no-referrer`) también en respuestas de error.

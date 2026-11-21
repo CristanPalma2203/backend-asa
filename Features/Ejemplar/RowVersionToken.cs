@@ -2,6 +2,8 @@ namespace backend_asa.Features.Ejemplar;
 
 internal static class RowVersionToken
 {
+    private const int RowVersionBytes = 8;
+
     public static bool EsValido(string? token) => TryRead(token, out _);
 
     public static bool TryRead(string? token, out byte[] bytes)
@@ -12,15 +14,13 @@ internal static class RowVersionToken
             return false;
         }
 
-        try
-        {
-            bytes = Convert.FromBase64String(token);
-        }
-        catch (FormatException)
+        var buffer = new byte[RowVersionBytes];
+        if (!Convert.TryFromBase64String(token, buffer, out var escritos) || escritos != RowVersionBytes)
         {
             return false;
         }
 
-        return bytes.Length == 8;
+        bytes = buffer;
+        return true;
     }
 }

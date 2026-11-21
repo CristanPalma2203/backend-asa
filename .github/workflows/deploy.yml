@@ -3,17 +3,14 @@ name: Build y push de la imagen a GHCR
 on:
   push:
     branches: [main]
-  # En PRs solo corren los tests: el job image no se ejecuta.
   pull_request:
     branches: [main]
   workflow_dispatch:
 
-# En main, una publicación a la vez (la nueva espera). En un PR, un push nuevo cancela la ejecución anterior.
 concurrency:
   group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'publish-backend-asa-image' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Sin permisos por defecto: cada job pide solo lo que necesita.
 permissions: {}
 
 env:
@@ -32,14 +29,15 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      # Tests de integración: Testcontainers levanta SQL Server con el Docker del runner.
+      - name: dotnet format
+        run: dotnet format backend-asa.slnx --verify-no-changes
+
       - name: dotnet test
         run: dotnet test tests/backend-asa.Tests/backend-asa.Tests.csproj -c Release
 
   image:
     name: Imagen a GHCR
     needs: test
-    # Solo se publica desde main (push o lanzado a mano), nunca desde un pull request.
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -65,7 +63,6 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
-          # Liga el paquete de GHCR a este repositorio.
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}

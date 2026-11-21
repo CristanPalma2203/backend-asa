@@ -1,7 +1,7 @@
+using backend_asa.Common.Persistence;
 using backend_asa.Common.Results;
 using backend_asa.Domain.Enums;
 using backend_asa.Infrastructure.Persistence;
-using backend_asa.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Ejemplar.Crear;

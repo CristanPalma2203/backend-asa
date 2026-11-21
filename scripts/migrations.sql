@@ -259,3 +259,24 @@ END;
 
 COMMIT;
 GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261121123411_AgregarIndiceLectoresEstado'
+)
+BEGIN
+    CREATE INDEX [IX_Lectores_Estado] ON [Lectores] ([Estado]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261121123411_AgregarIndiceLectoresEstado'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261121123411_AgregarIndiceLectoresEstado', N'10.0.15');
+END;
+
+COMMIT;
+GO

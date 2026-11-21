@@ -100,6 +100,8 @@ namespace backend_asa.Infrastructure.Persistence.Migrations
                     b.HasIndex("Correo")
                         .IsUnique();
 
+                    b.HasIndex("Estado");
+
                     b.HasIndex("Identificador")
                         .IsUnique();
 

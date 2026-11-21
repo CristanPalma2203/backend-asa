@@ -9,6 +9,8 @@ namespace backend_asa.Tests;
 
 public sealed class ReservasTests(SqlServerFixture fixture) : IntegrationTest(fixture)
 {
+    private const int RondasConcurrentes = 8;
+
     [Fact]
     public async Task Crear_ElPrincipito_BajaDisponiblesYMarcaLaCopiaReservada()
     {
@@ -210,6 +212,61 @@ public sealed class ReservasTests(SqlServerFixture fixture) : IntegrationTest(fi
             barrera.SignalAndWait(TimeSpan.FromSeconds(30)).Should().BeTrue();
             return await cliente.PostAsJsonAsync("/api/reservas", new { lectorId, libroId }, Json);
         });
+
+    [Fact]
+    public async Task Cancelar_DosVecesALaVez_LaSegundaRecibeReservaNoActiva()
+    {
+        var libroId = await IdLibro("9788498381498");
+        var lectorId = await IdLector(AnaCorreo);
+        var ana = await LoginAsync(AnaCorreo, AnaPassword);
+
+        for (var ronda = 0; ronda < RondasConcurrentes; ronda++)
+        {
+            var reserva = await ana.PostAsJsonAsync("/api/reservas", new { lectorId, libroId }, Json);
+            reserva.StatusCode.Should().Be(HttpStatusCode.Created);
+            var idReserva = (await LeerJson(reserva)).GetProperty("idReserva").GetInt32();
+
+            var respuestas = await Task.WhenAll(
+                ana.PostAsync($"/api/reservas/{idReserva}/cancelar", null),
+                ana.PostAsync($"/api/reservas/{idReserva}/cancelar", null));
+
+            respuestas.Select(r => r.StatusCode).Should()
+                .BeEquivalentTo([HttpStatusCode.NoContent, HttpStatusCode.Conflict]);
+            var rechazada = respuestas.Single(r => r.StatusCode == HttpStatusCode.Conflict);
+            (await Codigo(rechazada)).Should().Be("reserva-no-activa");
+        }
+
+        (await Disponibles(libroId)).Should().Be(3);
+    }
+
+    [Fact]
+    public async Task DesactivarLibro_MientrasSeReserva_NuncaQuedaInactivoConReservaActiva()
+    {
+        var lectorId = await IdLector(AnaCorreo);
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
+        var libros = await Fixture.EnDb(db => db.Libros
+            .Where(libro => libro.Ejemplares.Any(e => e.Estado == EstadoEjemplar.Disponible))
+            .OrderBy(libro => libro.IdLibro)
+            .Select(libro => libro.IdLibro)
+            .Take(RondasConcurrentes)
+            .ToListAsync());
+
+        foreach (var libroId in libros)
+        {
+            var respuestas = await Task.WhenAll(
+                admin.PostAsJsonAsync("/api/reservas", new { lectorId, libroId }, Json),
+                admin.DeleteAsync($"/api/libros/{libroId}"));
+
+            respuestas[0].StatusCode.Should().BeOneOf(
+                HttpStatusCode.Created, HttpStatusCode.Conflict, HttpStatusCode.UnprocessableEntity);
+            respuestas[1].StatusCode.Should().BeOneOf(
+                HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity);
+        }
+
+        var inactivosConReservaActiva = await Fixture.EnDb(db => db.Reservas.CountAsync(reserva =>
+            reserva.Estado == EstadoReserva.Activa && reserva.Ejemplar.Libro.Estado == EstadoLibro.Inactivo));
+        inactivosConReservaActiva.Should().Be(0);
+    }
 
     private async Task<int> IdLibro(string isbn)
     {

@@ -38,8 +38,9 @@ public static class CancelarReservaHandler
             cancellationToken);
 
         var reserva = await db.Reservas
+            .FromSql($"SELECT * FROM Reservas WITH (UPDLOCK, ROWLOCK) WHERE IdReserva = {id}")
             .Include(item => item.Ejemplar)
-            .FirstOrDefaultAsync(item => item.IdReserva == id, cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (reserva is null)
         {

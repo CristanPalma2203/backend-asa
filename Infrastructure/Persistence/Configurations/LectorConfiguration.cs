@@ -34,6 +34,8 @@ public class LectorConfiguration : IEntityTypeConfiguration<Lector>
             .HasConversion<string>()
             .HasColumnType("varchar(20)");
 
+        builder.HasIndex(l => l.Estado);
+
         builder.ToTable(t =>
             t.HasCheckConstraint(
                 "CK_Lector_Estado",
