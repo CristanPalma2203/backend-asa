@@ -17,7 +17,6 @@ public sealed record ResumenKpis(
     int ReservasActivas,
     double Ocupacion);
 
-/// <summary>Fecha: día en UTC (yyyy-MM-dd).</summary>
 public sealed record ResumenDia(DateOnly Fecha, int Reservas, int Cancelaciones);
 
 public sealed record ResumenCategoria(string Categoria, int Disponibles, int Reservados, int Inactivos);
@@ -26,5 +25,4 @@ public sealed record ResumenLibroReservado(int LibroId, string Isbn, string Titu
 
 public sealed record ResumenLibroPorAgotarse(int LibroId, string Isbn, string Titulo, int Disponibles, int Total);
 
-/// <summary>Tipo: "reserva" o "cancelacion".</summary>
 public sealed record ResumenActividad(string Tipo, string Lector, string Libro, string CodigoEjemplar, DateTime Fecha);

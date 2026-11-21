@@ -17,8 +17,8 @@ public sealed class ObtenerLectorEndpoint : IEndpoint
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ObtenerLectorHandler.Handle(request.Id, db, cancellationToken);
-                return result.ToHttpResult();
+                var lector = await ObtenerLectorHandler.Handle(request.Id, db, cancellationToken);
+                return lector.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ObtenerLectorRequest>>()
             .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))

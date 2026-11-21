@@ -19,8 +19,8 @@ public sealed class ListarReservasPorLectorEndpoint : IEndpoint
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ListarReservasPorLectorHandler.Handle(request, usuario, db, cancellationToken);
-                return result.ToHttpResult();
+                var reservas = await ListarReservasPorLectorHandler.Handle(request, usuario, db, cancellationToken);
+                return reservas.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ListarReservasPorLectorRequest>>()
             .Produces<PagedResponse<ReservaDetalle>>(StatusCodes.Status200OK)

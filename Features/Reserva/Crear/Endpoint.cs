@@ -19,10 +19,10 @@ public sealed class CrearReservaEndpoint : IEndpoint
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await CrearReservaHandler.Handle(request, usuario, db, timeProvider, cancellationToken);
-                return result.IsSuccess
-                    ? result.ToHttpResult($"/api/reservas/{result.Value!.IdReserva}")
-                    : result.ToHttpResult();
+                var reservaCreada = await CrearReservaHandler.Handle(request, usuario, db, timeProvider, cancellationToken);
+                return reservaCreada.IsSuccess
+                    ? reservaCreada.ToHttpResult($"/api/reservas/{reservaCreada.Value!.IdReserva}")
+                    : reservaCreada.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<CrearReservaRequest>>()
             .Produces<CrearReservaResponse>(StatusCodes.Status201Created)

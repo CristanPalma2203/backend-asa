@@ -17,8 +17,8 @@ public sealed class ActivarLectorEndpoint : IEndpoint
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ActivarLectorHandler.Handle(request.Id, db, cancellationToken);
-                return result.ToHttpResult();
+                var activacion = await ActivarLectorHandler.Handle(request.Id, db, cancellationToken);
+                return activacion.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ActivarLectorRequest>>()
             .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))

@@ -17,17 +17,15 @@ public static class ObtenerResumenHandler
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        // Ventana en UTC: hoy y los (dias - 1) días anteriores, desde las 00:00.
         var hoy = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
         var primerDia = hoy.AddDays(-(request.Dias - 1));
-        var desde = primerDia.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var inicioVentanaUtc = primerDia.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
-        // Copias de libros activos. Las inactivas no cuentan como activas.
-        var copias = db.Ejemplares.AsNoTracking().Where(e => e.Libro.Estado == EstadoLibro.Activo);
+        var copiasDeLibrosActivos = db.Ejemplares.AsNoTracking().Where(e => e.Libro.Estado == EstadoLibro.Activo);
 
-        var activos = await copias.CountAsync(e => e.Estado != EstadoEjemplar.Inactivo, cancellationToken);
-        var disponibles = await copias.CountAsync(e => e.Estado == EstadoEjemplar.Disponible, cancellationToken);
-        var reservados = await copias.CountAsync(e => e.Estado == EstadoEjemplar.Reservado, cancellationToken);
+        var activos = await copiasDeLibrosActivos.CountAsync(e => e.Estado != EstadoEjemplar.Inactivo, cancellationToken);
+        var disponibles = await copiasDeLibrosActivos.CountAsync(e => e.Estado == EstadoEjemplar.Disponible, cancellationToken);
+        var reservados = await copiasDeLibrosActivos.CountAsync(e => e.Estado == EstadoEjemplar.Reservado, cancellationToken);
 
         var kpis = new ResumenKpis(
             await db.Libros.AsNoTracking().CountAsync(l => l.Estado == EstadoLibro.Activo, cancellationToken),
@@ -38,14 +36,13 @@ public static class ObtenerResumenHandler
             await db.Reservas.AsNoTracking().CountAsync(r => r.Estado == EstadoReserva.Activa, cancellationToken),
             activos == 0 ? 0 : Math.Round((double)reservados / activos, 4));
 
-        // Serie: SQL agrupa por día; los días sin datos se rellenan con 0 aquí.
         var reservasPorDia = await db.Reservas.AsNoTracking()
-            .Where(r => r.FechaSolicitud >= desde)
+            .Where(r => r.FechaSolicitud >= inicioVentanaUtc)
             .GroupBy(r => r.FechaSolicitud.Date)
             .Select(g => new { Dia = g.Key, Total = g.Count() })
             .ToListAsync(cancellationToken);
         var cancelacionesPorDia = await db.Reservas.AsNoTracking()
-            .Where(r => r.FechaCancelacion != null && r.FechaCancelacion >= desde)
+            .Where(r => r.FechaCancelacion != null && r.FechaCancelacion >= inicioVentanaUtc)
             .GroupBy(r => r.FechaCancelacion!.Value.Date)
             .Select(g => new { Dia = g.Key, Total = g.Count() })
             .ToListAsync(cancellationToken);
@@ -59,7 +56,7 @@ public static class ObtenerResumenHandler
                 cancelacionesDia.GetValueOrDefault(dia)))
             .ToList();
 
-        var porCategoria = await copias
+        var porCategoria = await copiasDeLibrosActivos
             .GroupBy(e => e.Libro.Categoria)
             .OrderBy(g => g.Key)
             .Select(g => new ResumenCategoria(
@@ -69,23 +66,22 @@ public static class ObtenerResumenHandler
                 g.Count(e => e.Estado == EstadoEjemplar.Inactivo)))
             .ToListAsync(cancellationToken);
 
-        var top = await db.Reservas.AsNoTracking()
-            .Where(r => r.FechaSolicitud >= desde)
+        var masReservadosIds = await db.Reservas.AsNoTracking()
+            .Where(r => r.FechaSolicitud >= inicioVentanaUtc)
             .GroupBy(r => r.Ejemplar.IdLibro)
             .Select(g => new { IdLibro = g.Key, Reservas = g.Count() })
             .OrderByDescending(x => x.Reservas)
             .ThenBy(x => x.IdLibro)
             .Take(TopMasReservados)
             .ToListAsync(cancellationToken);
-        var idsTop = top.Select(x => x.IdLibro).ToList();
+        var idsTop = masReservadosIds.Select(x => x.IdLibro).ToList();
         var librosTop = await db.Libros.AsNoTracking()
             .Where(l => idsTop.Contains(l.IdLibro))
             .Select(l => new { l.IdLibro, l.Isbn, l.Titulo, l.Autor })
             .ToDictionaryAsync(l => l.IdLibro, cancellationToken);
-        // El modelo todavía no guarda portada: PortadaUrl sale en null.
-        var masReservados = top
+        var masReservados = masReservadosIds
             .Select(x => new ResumenLibroReservado(
-                x.IdLibro, librosTop[x.IdLibro].Isbn, librosTop[x.IdLibro].Titulo, librosTop[x.IdLibro].Autor, null, x.Reservas))
+                x.IdLibro, librosTop[x.IdLibro].Isbn, librosTop[x.IdLibro].Titulo, librosTop[x.IdLibro].Autor, PortadaUrl: null, x.Reservas))
             .ToList();
 
         var porAgotarse = await db.Libros.AsNoTracking()
@@ -105,7 +101,6 @@ public static class ObtenerResumenHandler
             .Select(x => new ResumenLibroPorAgotarse(x.IdLibro, x.Isbn, x.Titulo, x.Disponibles, x.Total))
             .ToListAsync(cancellationToken);
 
-        // Actividad: las 10 últimas de cada tipo, mezcladas en memoria.
         var ultimasReservas = await db.Reservas.AsNoTracking()
             .OrderByDescending(r => r.FechaSolicitud)
             .Take(TopActividad)

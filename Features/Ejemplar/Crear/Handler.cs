@@ -1,7 +1,6 @@
 using backend_asa.Common.Results;
 using backend_asa.Domain.Enums;
 using backend_asa.Infrastructure.Persistence;
-using FluentValidation;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,15 +38,6 @@ public static class CrearEjemplarHandler
         }
 
         var codigo = CodigoInventario.Normalizar(request.CodigoInventario);
-        var codigoExiste = await db.Ejemplares.AnyAsync(
-            ejemplar => ejemplar.CodigoInventario == codigo,
-            cancellationToken);
-
-        if (codigoExiste)
-        {
-            return CodigoDuplicado();
-        }
-
         var ahora = timeProvider.GetUtcNow().UtcDateTime;
         var ejemplar = new Domain.Ejemplar
         {

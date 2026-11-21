@@ -17,8 +17,8 @@ public sealed class ListarLibrosEndpoint : IEndpoint
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ListarLibrosHandler.Handle(request, db, cancellationToken);
-                return result.ToHttpResult();
+                var libros = await ListarLibrosHandler.Handle(request, db, cancellationToken);
+                return libros.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ListarLibrosRequest>>()
             .AllowAnonymous()

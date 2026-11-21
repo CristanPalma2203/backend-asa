@@ -20,10 +20,10 @@ public sealed class CrearEjemplarEndpoint : IEndpoint
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await CrearEjemplarHandler.Handle(idLibro, request, db, timeProvider, cancellationToken);
-                return result.IsSuccess
-                    ? result.ToHttpResult($"/api/libros/{idLibro}/ejemplares/{result.Value!.IdEjemplar}")
-                    : result.ToHttpResult();
+                var ejemplarCreado = await CrearEjemplarHandler.Handle(idLibro, request, db, timeProvider, cancellationToken);
+                return ejemplarCreado.IsSuccess
+                    ? ejemplarCreado.ToHttpResult($"/api/libros/{idLibro}/ejemplares/{ejemplarCreado.Value!.IdEjemplar}")
+                    : ejemplarCreado.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<CrearEjemplarRequest>>()
             .Produces<CrearEjemplarResponse>(StatusCodes.Status201Created)

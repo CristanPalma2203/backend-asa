@@ -16,8 +16,8 @@ public sealed class ObtenerLibroEndpoint : IEndpoint
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ObtenerLibroHandler.Handle(request.Id, db, cancellationToken);
-                return result.ToHttpResult();
+                var libro = await ObtenerLibroHandler.Handle(request.Id, db, cancellationToken);
+                return libro.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ObtenerLibroRequest>>()
             .AllowAnonymous()

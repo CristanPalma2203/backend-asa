@@ -2,7 +2,6 @@ using System.Security.Claims;
 using backend_asa.Common.Results;
 using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
-using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Reserva.Obtener;
@@ -40,10 +39,9 @@ public static class ObtenerReservaHandler
                 ErrorType.NotFound));
         }
 
-        var acceso = Acceso.DenegarSiNoEsDuenoOAdmin(usuario, fila.IdLector);
-        if (acceso is not null)
+        if (Acceso.DenegarSiNoEsDuenoOAdmin(usuario, fila.IdLector) is { } accesoDenegado)
         {
-            return Result.Failure<ReservaDetalle>(acceso.Error!);
+            return Result.Failure<ReservaDetalle>(accesoDenegado);
         }
 
         return Result.Success(fila.Detalle);

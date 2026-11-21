@@ -1,7 +1,6 @@
 using backend_asa.Common.Results;
 using backend_asa.Domain.Enums;
 using backend_asa.Infrastructure.Persistence;
-using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Lector.Obtener;

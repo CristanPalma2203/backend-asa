@@ -18,8 +18,8 @@ public sealed class EditarLectorEndpoint : IEndpoint
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await EditarLectorHandler.Handle(id, request, db, cancellationToken);
-                return result.ToHttpResult();
+                var edicion = await EditarLectorHandler.Handle(id, request, db, cancellationToken);
+                return edicion.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<EditarLectorRequest>>()
             .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))

@@ -14,11 +14,6 @@ public static class CrearLibroHandler
         CancellationToken cancellationToken)
     {
         var isbn = LibroIsbn.Limpiar(request.Isbn);
-        var isbnExiste = await db.Libros.AnyAsync(libro => libro.Isbn == isbn, cancellationToken);
-        if (isbnExiste)
-        {
-            return IsbnDuplicado();
-        }
 
         var libro = new Domain.Libro
         {

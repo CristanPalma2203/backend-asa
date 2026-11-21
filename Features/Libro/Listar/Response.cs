@@ -1,4 +1,3 @@
-
 namespace backend_asa.Features.Libro.Listar;
 
 public sealed record ListarLibrosItem(

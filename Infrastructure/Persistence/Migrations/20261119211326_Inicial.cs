@@ -5,10 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace backend_asa.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class Inicial : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -169,7 +167,6 @@ namespace backend_asa.Infrastructure.Persistence.Migrations
                 column: "IdLector");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

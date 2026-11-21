@@ -1,7 +1,3 @@
--- Limpieza de datos de prueba. No es una migración.
--- Compara contra el seed de DatosIniciales y solo borra lo que no está ahí
--- y cuyo título, nombre, correo, identificador o código coincide con QA, Test, Prueba o Live.
--- Por defecto hace ROLLBACK. Cambia @Confirmar a 1 para COMMIT.
 SET NOCOUNT ON;
 
 DECLARE @Confirmar bit = 0;
@@ -17,7 +13,6 @@ INSERT INTO #IsbnSeed (Isbn) VALUES
     ('9780062464316'), ('9780393317558'), ('9780553380163'), ('9780345539434'), ('9780198788607'),
     ('9780142410318'), ('9788478884452'), ('9780132350884'), ('9780135957059'), ('9780201633610');
 
--- BIB-001 .. BIB-051, los códigos que genera DatosIniciales.
 CREATE TABLE #CodigoSeed (Codigo varchar(30) NOT NULL PRIMARY KEY);
 INSERT INTO #CodigoSeed (Codigo)
 SELECT 'BIB-' + RIGHT('000' + CAST(n AS varchar(3)), 3)
@@ -132,8 +127,6 @@ BEGIN TRAN;
 DELETE FROM Reservas
 WHERE IdReserva IN (SELECT IdReserva FROM #ReservasPrueba);
 
--- Las reservas de prueba dejan el ejemplar en Reservado. No hay columna de stock:
--- Disponible se recupera si ya no queda una reserva activa sobre esa copia.
 UPDATE e
 SET Estado = 'Disponible',
     UpdatedAt = SYSUTCDATETIME()

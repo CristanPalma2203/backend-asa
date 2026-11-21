@@ -18,8 +18,8 @@ public sealed class ObtenerReservaEndpoint : IEndpoint
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ObtenerReservaHandler.Handle(request.Id, usuario, db, cancellationToken);
-                return result.ToHttpResult();
+                var reserva = await ObtenerReservaHandler.Handle(request.Id, usuario, db, cancellationToken);
+                return reserva.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ObtenerReservaRequest>>()
             .Produces<ReservaDetalle>(StatusCodes.Status200OK)

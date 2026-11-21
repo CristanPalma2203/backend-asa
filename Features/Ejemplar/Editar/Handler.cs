@@ -24,16 +24,6 @@ public static class EditarEjemplarHandler
         }
 
         var codigo = CodigoInventario.Normalizar(request.CodigoInventario);
-        var codigoOcupado = await db.Ejemplares.AnyAsync(
-            item => item.CodigoInventario == codigo && item.IdEjemplar != id,
-            cancellationToken);
-        if (codigoOcupado)
-        {
-            return CodigoDuplicado();
-        }
-
-        // Si otro usuario cambió el ejemplar después de que el cliente lo leyó, EF lanza
-        // DbUpdateConcurrencyException y GlobalExceptionHandler responde 409 conflicto-concurrencia.
         RowVersionToken.TryRead(request.RowVersion, out var rowVersion);
         db.Entry(ejemplar).Property(item => item.RowVersion).OriginalValue = rowVersion;
         ejemplar.CodigoInventario = codigo;

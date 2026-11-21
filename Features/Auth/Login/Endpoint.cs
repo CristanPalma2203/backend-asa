@@ -22,8 +22,8 @@ public sealed class LoginEndpoint : IEndpoint
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await LoginHandler.Handle(request, db, jwt, hasher, timeProvider, cancellationToken);
-                return result.ToHttpResult();
+                var sesion = await LoginHandler.Handle(request, db, jwt, hasher, timeProvider, cancellationToken);
+                return sesion.ToHttpResult();
             })
             .AllowAnonymous()
             .AddEndpointFilter<ValidationFilter<LoginRequest>>()

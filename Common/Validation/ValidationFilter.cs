@@ -20,13 +20,13 @@ public sealed class ValidationFilter<T> : IEndpointFilter where T : class
             return await next(context);
         }
 
-        var result = await validator.ValidateAsync(argument, context.HttpContext.RequestAborted);
-        if (result.IsValid)
+        var validacion = await validator.ValidateAsync(argument, context.HttpContext.RequestAborted);
+        if (validacion.IsValid)
         {
             return await next(context);
         }
 
-        var errors = result.Errors
+        var errors = validacion.Errors
             .GroupBy(error => error.PropertyName)
             .ToDictionary(
                 group => group.Key,

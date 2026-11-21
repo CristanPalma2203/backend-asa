@@ -1,6 +1,5 @@
 using backend_asa.Common.Results;
 using backend_asa.Infrastructure.Persistence;
-using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Ejemplar.Listar;

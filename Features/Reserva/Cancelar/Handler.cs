@@ -9,9 +9,6 @@ namespace backend_asa.Features.Reserva.Cancelar;
 
 public static class CancelarReservaHandler
 {
-    // Con EnableRetryOnFailure, EF solo admite transacciones propias dentro de la estrategia de ejecución.
-    // Si hay un error transitorio se repite el intento completo; ChangeTracker.Clear() evita
-    // arrastrar entidades del intento fallido.
     public static async Task<Result> Handle(
         int id,
         ClaimsPrincipal usuario,
@@ -19,17 +16,17 @@ public static class CancelarReservaHandler
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var strategy = db.Database.CreateExecutionStrategy();
-        return await strategy.ExecuteAsync(
+        var estrategiaReintentos = db.Database.CreateExecutionStrategy();
+        return await estrategiaReintentos.ExecuteAsync(
             async ct =>
             {
                 db.ChangeTracker.Clear();
-                return await EjecutarAsync(id, usuario, db, timeProvider, ct);
+                return await EjecutarIntentoAsync(id, usuario, db, timeProvider, ct);
             },
             cancellationToken);
     }
 
-    private static async Task<Result> EjecutarAsync(
+    private static async Task<Result> EjecutarIntentoAsync(
         int id,
         ClaimsPrincipal usuario,
         BibliotecaDbContext db,
@@ -52,10 +49,9 @@ public static class CancelarReservaHandler
                 ErrorType.NotFound));
         }
 
-        var acceso = Acceso.DenegarSiNoEsDuenoOAdmin(usuario, reserva.IdLector);
-        if (acceso is not null)
+        if (Acceso.DenegarSiNoEsDuenoOAdmin(usuario, reserva.IdLector) is { } accesoDenegado)
         {
-            return acceso;
+            return Result.Failure(accesoDenegado);
         }
 
         if (reserva.Estado != EstadoReserva.Activa)

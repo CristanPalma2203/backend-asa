@@ -19,8 +19,8 @@ public sealed class EditarEjemplarEndpoint : IEndpoint
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await EditarEjemplarHandler.Handle(id, request, db, timeProvider, cancellationToken);
-                return result.ToHttpResult();
+                var edicion = await EditarEjemplarHandler.Handle(id, request, db, timeProvider, cancellationToken);
+                return edicion.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<EditarEjemplarRequest>>()
             .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))

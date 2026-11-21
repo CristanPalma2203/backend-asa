@@ -3,7 +3,6 @@ using backend_asa.Common.Results;
 using backend_asa.Domain.Enums;
 using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
-using FluentValidation;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,9 +10,6 @@ namespace backend_asa.Features.Reserva.Crear;
 
 public static class CrearReservaHandler
 {
-    // Con EnableRetryOnFailure, EF solo admite transacciones propias dentro de la estrategia de ejecución.
-    // Si hay un error transitorio se repite el intento completo; ChangeTracker.Clear() evita
-    // arrastrar entidades del intento fallido.
     public static async Task<Result<CrearReservaResponse>> Handle(
         CrearReservaRequest request,
         ClaimsPrincipal usuario,
@@ -21,17 +17,17 @@ public static class CrearReservaHandler
         TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
-        var strategy = db.Database.CreateExecutionStrategy();
-        return await strategy.ExecuteAsync(
+        var estrategiaReintentos = db.Database.CreateExecutionStrategy();
+        return await estrategiaReintentos.ExecuteAsync(
             async ct =>
             {
                 db.ChangeTracker.Clear();
-                return await EjecutarAsync(request, usuario, db, timeProvider, ct);
+                return await EjecutarIntentoAsync(request, usuario, db, timeProvider, ct);
             },
             cancellationToken);
     }
 
-    private static async Task<Result<CrearReservaResponse>> EjecutarAsync(
+    private static async Task<Result<CrearReservaResponse>> EjecutarIntentoAsync(
         CrearReservaRequest request,
         ClaimsPrincipal usuario,
         BibliotecaDbContext db,
@@ -41,7 +37,7 @@ public static class CrearReservaHandler
         var acceso = Acceso.ResolverLector(usuario, request.LectorId);
         if (!acceso.IsSuccess)
         {
-            return Result.Failure<CrearReservaResponse>(acceso.Error!);
+            return Result.Failure<CrearReservaResponse>(acceso.Error);
         }
 
         var lectorId = acceso.Value;
@@ -49,14 +45,12 @@ public static class CrearReservaHandler
             System.Data.IsolationLevel.ReadCommitted,
             cancellationToken);
 
-        // Bloquea la fila del lector hasta el commit: serializa las reservas del mismo lector
-        // para que la verificación de reserva duplicada no tenga carrera.
-        var lector = await db.Lectores
+        var lectorBloqueado = await db.Lectores
             .FromSql($"SELECT * FROM Lectores WITH (UPDLOCK, ROWLOCK) WHERE IdLector = {lectorId}")
             .Select(item => new { item.Estado })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (lector is null)
+        if (lectorBloqueado is null)
         {
             return Result.Failure<CrearReservaResponse>(new Error(
                 "lector-no-encontrado",
@@ -64,7 +58,7 @@ public static class CrearReservaHandler
                 ErrorType.NotFound));
         }
 
-        if (lector.Estado == EstadoLector.Inactivo)
+        if (lectorBloqueado.Estado == EstadoLector.Inactivo)
         {
             return Result.Failure<CrearReservaResponse>(new Error(
                 "lector-inactivo",

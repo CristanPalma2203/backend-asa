@@ -1,7 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace backend_asa.Common.Results;
 
 public class Result
 {
+    [MemberNotNullWhen(false, nameof(Error))]
     public bool IsSuccess { get; }
     public Error? Error { get; }
 

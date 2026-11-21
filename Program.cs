@@ -92,8 +92,6 @@ builder.Services.AddOpenApi(options =>
     options.AddSchemaTransformer<EnumComoStringSchemaTransformer>();
 });
 builder.Services.AddProblemDetails();
-// Por defecto solo Development lanza BadHttpRequestException en los minimal APIs; en Production
-// respondería 400 sin cuerpo. Así todos los entornos pasan por GlobalExceptionHandler.
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
@@ -118,7 +116,6 @@ var lectorPassword = builder.Configuration["Seed:LectorPassword"];
 builder.Services.AddDbContext<BibliotecaDbContext>(options =>
     options.UseSqlServer(
             builder.Configuration.GetConnectionString("database-asa"),
-            // Reintenta errores transitorios (p. ej. SQL Server todavía arrancando en Docker).
             sql => sql.EnableRetryOnFailure())
         .UseSeeding((context, _) => DatosIniciales.Seed(context, adminPassword, lectorPassword))
         .UseAsyncSeeding((context, _, cancellationToken) => DatosIniciales.SeedAsync(context, adminPassword, lectorPassword, cancellationToken)));
@@ -128,8 +125,6 @@ var app = builder.Build();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseExceptionHandler();
 
-// En Development siempre migro y siembro. Fuera de Development solo si Database:MigrateOnStartup=true
-// (lo activa docker-compose); en un despliegue real se aplica scripts/migrations.sql.
 var migrarAlArrancar = app.Environment.IsDevelopment()
     || app.Configuration.GetValue<bool>("Database:MigrateOnStartup");
 
@@ -140,8 +135,6 @@ if (migrarAlArrancar)
     await db.Database.MigrateAsync();
 }
 
-// OpenAPI y Scalar: siempre en Development; en otros entornos solo con Docs:Enabled=true
-// (por ejemplo, para que un evaluador explore la API desplegada). Por defecto está apagado.
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Docs:Enabled"))
 {
     app.MapOpenApi().AllowAnonymous();

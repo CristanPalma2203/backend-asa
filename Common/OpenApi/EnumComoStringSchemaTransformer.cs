@@ -3,10 +3,6 @@ using Microsoft.OpenApi;
 
 namespace backend_asa.Common.OpenApi;
 
-/// <summary>
-/// La API serializa los enums con JsonStringEnumConverter. Este transformer declara su schema como
-/// "type": "string" para que los clientes generados desde OpenAPI los tipen como texto.
-/// </summary>
 public sealed class EnumComoStringSchemaTransformer : IOpenApiSchemaTransformer
 {
     public Task TransformAsync(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken cancellationToken)

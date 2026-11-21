@@ -8,17 +8,17 @@ public static class ResultExtensions
     public static IResult ToHttpResult(this Result result) =>
         result.IsSuccess
             ? TypedResults.NoContent()
-            : Problem(result.Error!);
+            : Problem(result.Error);
 
     public static IResult ToHttpResult<T>(this Result<T> result) =>
         result.IsSuccess
             ? TypedResults.Ok(result.Value)
-            : Problem(result.Error!);
+            : Problem(result.Error);
 
     public static IResult ToHttpResult<T>(this Result<T> result, string createdUri) =>
         result.IsSuccess
             ? TypedResults.Created(createdUri, result.Value)
-            : Problem(result.Error!);
+            : Problem(result.Error);
 
     private static ProblemHttpResult Problem(Error error)
     {

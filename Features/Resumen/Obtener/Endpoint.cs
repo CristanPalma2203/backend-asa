@@ -18,8 +18,8 @@ public sealed class ObtenerResumenEndpoint : IEndpoint
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ObtenerResumenHandler.Handle(request, db, timeProvider, cancellationToken);
-                return result.ToHttpResult();
+                var resumen = await ObtenerResumenHandler.Handle(request, db, timeProvider, cancellationToken);
+                return resumen.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ObtenerResumenRequest>>()
             .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))

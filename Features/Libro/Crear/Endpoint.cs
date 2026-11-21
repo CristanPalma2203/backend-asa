@@ -17,10 +17,10 @@ public sealed class CrearLibroEndpoint : IEndpoint
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await CrearLibroHandler.Handle(request, db, cancellationToken);
-                return result.IsSuccess
-                    ? result.ToHttpResult($"/api/libros/{result.Value!.IdLibro}")
-                    : result.ToHttpResult();
+                var libroCreado = await CrearLibroHandler.Handle(request, db, cancellationToken);
+                return libroCreado.IsSuccess
+                    ? libroCreado.ToHttpResult($"/api/libros/{libroCreado.Value!.IdLibro}")
+                    : libroCreado.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<CrearLibroRequest>>()
             .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))

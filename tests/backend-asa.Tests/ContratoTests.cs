@@ -11,9 +11,9 @@ public sealed class ContratoTests(SqlServerFixture fixture) : IntegrationTest(fi
     private const string PrincipitoIsbn = "9788498381498";
 
     [Theory]
-    [InlineData("/health")]              // respuesta normal
-    [InlineData("/api/libros/999999")]   // 404 ProblemDetails
-    [InlineData("/api/lectores")]        // 401 sin token
+    [InlineData("/health")]
+    [InlineData("/api/libros/999999")]
+    [InlineData("/api/lectores")]
     public async Task Respuestas_TraenHeadersDeSeguridad(string url)
     {
         var response = await Client.GetAsync(url);

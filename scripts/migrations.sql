@@ -259,4 +259,3 @@ END;
 
 COMMIT;
 GO
-

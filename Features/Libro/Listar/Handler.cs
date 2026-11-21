@@ -2,7 +2,6 @@ using backend_asa.Common.Pagination;
 using backend_asa.Common.Results;
 using backend_asa.Domain.Enums;
 using backend_asa.Infrastructure.Persistence;
-using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Libro.Listar;
@@ -29,7 +28,6 @@ public static class ListarLibrosHandler
 
         if (!string.IsNullOrWhiteSpace(request.Autor))
         {
-            // LOWER en ambos lados: no distingue mayúsculas aunque la columna tenga collation CS.
             var autor = request.Autor.Trim().ToLowerInvariant();
             query = query.Where(libro => libro.Autor.ToLower().Contains(autor));
         }
@@ -48,7 +46,6 @@ public static class ListarLibrosHandler
                 libro.Titulo,
                 libro.Autor,
                 libro.Categoria,
-                // Total = copias activas (no Inactivo), para que la ficha muestre "2 de 2" y no "2 de 3".
                 libro.Ejemplares.Count(ejemplar => ejemplar.Estado != EstadoEjemplar.Inactivo),
                 libro.Ejemplares.Count(ejemplar => ejemplar.Estado == EstadoEjemplar.Disponible)));
 

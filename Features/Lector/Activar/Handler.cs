@@ -21,8 +21,6 @@ public static class ActivarLectorHandler
                 ErrorType.NotFound));
         }
 
-        // Simétrico a Desactivar: también reactiva su usuario, si tiene, para que pueda volver a entrar.
-        // Idempotente: si ya está activo, no cambia nada y responde igual.
         lector.Estado = EstadoLector.Activo;
 
         var usuario = await db.Usuarios.FirstOrDefaultAsync(item => item.IdLector == id, cancellationToken);

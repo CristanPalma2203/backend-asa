@@ -21,8 +21,8 @@ public sealed class CambiarEstadoEjemplarEndpoint : IEndpoint
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await CambiarEstadoEjemplarHandler.Handle(idLibro, idEjemplar, request, db, timeProvider, cancellationToken);
-                return result.ToHttpResult();
+                var cambioEstado = await CambiarEstadoEjemplarHandler.Handle(idLibro, idEjemplar, request, db, timeProvider, cancellationToken);
+                return cambioEstado.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<CambiarEstadoEjemplarRequest>>()
             .Produces(StatusCodes.Status204NoContent)

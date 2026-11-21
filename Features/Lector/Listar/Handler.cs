@@ -1,7 +1,6 @@
 using backend_asa.Common.Pagination;
 using backend_asa.Common.Results;
 using backend_asa.Infrastructure.Persistence;
-using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Lector.Listar;

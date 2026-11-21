@@ -1,4 +1,3 @@
-
 namespace backend_asa.Features.Ejemplar;
 
 internal static class RowVersionToken

@@ -4,10 +4,8 @@
 
 namespace backend_asa.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class QuitarIndiceEjemplaresIdLibro : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropIndex(
@@ -15,7 +13,6 @@ namespace backend_asa.Infrastructure.Persistence.Migrations
                 table: "Ejemplares");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateIndex(

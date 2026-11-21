@@ -40,9 +40,6 @@ public static class DesactivarEjemplarHandler
             return Result.Success();
         }
 
-        // Baja lógica: la fila se conserva para no perder el historial de reservas.
-        // Si una reserva toma la copia entre la lectura y el guardado, la rowversion ya no
-        // coincide y GlobalExceptionHandler responde 409 conflicto-concurrencia.
         ejemplar.Estado = EstadoEjemplar.Inactivo;
         ejemplar.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);

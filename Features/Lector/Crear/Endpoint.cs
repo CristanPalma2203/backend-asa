@@ -21,10 +21,10 @@ public sealed class CrearLectorEndpoint : IEndpoint
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await CrearLectorHandler.Handle(request, db, hasher, timeProvider, cancellationToken);
-                return result.IsSuccess
-                    ? result.ToHttpResult($"/api/lectores/{result.Value!.IdLector}")
-                    : result.ToHttpResult();
+                var lectorCreado = await CrearLectorHandler.Handle(request, db, hasher, timeProvider, cancellationToken);
+                return lectorCreado.IsSuccess
+                    ? lectorCreado.ToHttpResult($"/api/lectores/{lectorCreado.Value!.IdLector}")
+                    : lectorCreado.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<CrearLectorRequest>>()
             .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))

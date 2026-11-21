@@ -32,8 +32,6 @@ public sealed class SqlServerFixture : IAsyncLifetime
         };
         ConnectionString = builder.ConnectionString;
 
-        // Valores solo de test: los tests no dependen de appsettings.Development.json.
-        // Las contraseñas coinciden con IntegrationTest.AdminPassword / AnaPassword.
         var settings = new Dictionary<string, string?>
         {
             ["ConnectionStrings:database-asa"] = ConnectionString,
@@ -45,8 +43,6 @@ public sealed class SqlServerFixture : IAsyncLifetime
 
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
         {
-            // Program.cs lee Jwt:Key y Seed:* de builder.Configuration antes de Build();
-            // UseSetting llega a esa configuración temprana y AddInMemoryCollection a la final.
             foreach (var (key, value) in settings)
             {
                 host.UseSetting(key, value);

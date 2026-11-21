@@ -1,7 +1,6 @@
 using backend_asa.Common.Results;
 using backend_asa.Domain.Enums;
 using backend_asa.Infrastructure.Persistence;
-using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Libro.Obtener;
@@ -24,9 +23,8 @@ public static class ObtenerLibroHandler
                 item.Autor,
                 item.Categoria,
                 item.Estado,
-                // Total = copias activas (no Inactivo), igual que en el listado.
                 TotalEjemplares = item.Ejemplares.Count(ejemplar => ejemplar.Estado != EstadoEjemplar.Inactivo),
-                Disponibles =item.Ejemplares.Count(ejemplar => ejemplar.Estado == EstadoEjemplar.Disponible),
+                Disponibles = item.Ejemplares.Count(ejemplar => ejemplar.Estado == EstadoEjemplar.Disponible),
                 Ejemplares = item.Ejemplares
                     .OrderBy(ejemplar => ejemplar.CodigoInventario)
                     .Select(ejemplar => new

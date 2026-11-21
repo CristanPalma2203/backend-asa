@@ -3,7 +3,6 @@ using backend_asa.Common.Pagination;
 using backend_asa.Common.Results;
 using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
-using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Reserva.ListarPorLector;
@@ -16,10 +15,9 @@ public static class ListarReservasPorLectorHandler
         BibliotecaDbContext db,
         CancellationToken cancellationToken)
     {
-        var acceso = Acceso.DenegarSiNoEsDuenoOAdmin(usuario, request.LectorId);
-        if (acceso is not null)
+        if (Acceso.DenegarSiNoEsDuenoOAdmin(usuario, request.LectorId) is { } accesoDenegado)
         {
-            return Result.Failure<PagedResponse<ReservaDetalle>>(acceso.Error!);
+            return Result.Failure<PagedResponse<ReservaDetalle>>(accesoDenegado);
         }
 
         var lectorExiste = await db.Lectores

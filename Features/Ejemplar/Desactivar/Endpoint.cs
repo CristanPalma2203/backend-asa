@@ -18,8 +18,8 @@ public sealed class DesactivarEjemplarEndpoint : IEndpoint
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await DesactivarEjemplarHandler.Handle(request.Id, db, timeProvider, cancellationToken);
-                return result.ToHttpResult();
+                var baja = await DesactivarEjemplarHandler.Handle(request.Id, db, timeProvider, cancellationToken);
+                return baja.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<DesactivarEjemplarRequest>>()
             .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))

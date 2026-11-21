@@ -121,7 +121,6 @@ public sealed class ResumenTests(SqlServerFixture fixture) : IntegrationTest(fix
         var admin = await LoginAsync(AdminCorreo, AdminPassword);
         var lectorId = await IdLector(AnaCorreo);
         var libroId = await IdLibro(PrincipitoIsbn);
-        // 3 copias: 1 reservada y 2 dadas de baja -> 0 disponibles, 1 activa.
         (await admin.PostAsJsonAsync("/api/reservas", new { lectorId, libroId }, Json))
             .StatusCode.Should().Be(HttpStatusCode.Created);
         var copias = await LeerJson(await admin.GetAsync($"/api/libros/{libroId}/ejemplares"));
@@ -151,7 +150,6 @@ public sealed class ResumenTests(SqlServerFixture fixture) : IntegrationTest(fix
     public async Task Obtener_PorAgotarse_DevuelveComoMaximo8()
     {
         var admin = await LoginAsync(AdminCorreo, AdminPassword);
-        // Todos los libros (25) quedan sin disponibles.
         await Fixture.EnDb(db => db.Ejemplares.ExecuteUpdateAsync(
             set => set.SetProperty(e => e.Estado, EstadoEjemplar.Inactivo)));
 

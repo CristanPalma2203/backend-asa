@@ -19,8 +19,8 @@ public sealed class CancelarReservaEndpoint : IEndpoint
                 TimeProvider timeProvider,
                 CancellationToken cancellationToken) =>
             {
-                var result = await CancelarReservaHandler.Handle(request.Id, usuario, db, timeProvider, cancellationToken);
-                return result.ToHttpResult();
+                var cancelacion = await CancelarReservaHandler.Handle(request.Id, usuario, db, timeProvider, cancellationToken);
+                return cancelacion.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<CancelarReservaRequest>>()
             .Produces(StatusCodes.Status204NoContent)

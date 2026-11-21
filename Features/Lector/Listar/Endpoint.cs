@@ -18,8 +18,8 @@ public sealed class ListarLectoresEndpoint : IEndpoint
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ListarLectoresHandler.Handle(request, db, cancellationToken);
-                return result.ToHttpResult();
+                var lectores = await ListarLectoresHandler.Handle(request, db, cancellationToken);
+                return lectores.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ListarLectoresRequest>>()
             .RequireAuthorization(policy => policy.RequireRole(Acceso.RolAdmin))

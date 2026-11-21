@@ -18,8 +18,8 @@ public sealed class ListarEjemplaresEndpoint : IEndpoint
                 BibliotecaDbContext db,
                 CancellationToken cancellationToken) =>
             {
-                var result = await ListarEjemplaresHandler.Handle(request.IdLibro, db, cancellationToken);
-                return result.ToHttpResult();
+                var ejemplares = await ListarEjemplaresHandler.Handle(request.IdLibro, db, cancellationToken);
+                return ejemplares.ToHttpResult();
             })
             .AddEndpointFilter<ValidationFilter<ListarEjemplaresRequest>>()
             .Produces<IReadOnlyList<ListarEjemplaresItem>>(StatusCodes.Status200OK)

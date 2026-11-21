@@ -5,10 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace backend_asa.Infrastructure.Persistence.Migrations
 {
-    /// <inheritdoc />
     public partial class AgregarUsuarios : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -52,7 +50,6 @@ namespace backend_asa.Infrastructure.Persistence.Migrations
                 filter: "[IdLector] IS NOT NULL");
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

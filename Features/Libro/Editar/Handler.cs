@@ -23,14 +23,6 @@ public static class EditarLibroHandler
         }
 
         var isbn = LibroIsbn.Limpiar(request.Isbn);
-        var isbnOcupado = await db.Libros.AnyAsync(
-            item => item.Isbn == isbn && item.IdLibro != id,
-            cancellationToken);
-        if (isbnOcupado)
-        {
-            return IsbnDuplicado();
-        }
-
         libro.Isbn = isbn;
         libro.Titulo = request.Titulo.Trim();
         libro.Autor = request.Autor.Trim();

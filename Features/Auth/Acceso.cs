@@ -22,7 +22,7 @@ public static class Acceso
         }
 
         var propio = LectorId(usuario);
-        if (propio is null || propio != lectorIdSolicitado)
+        if (propio != lectorIdSolicitado)
         {
             return Result.Failure<int>(Denegado("No puedes reservar a nombre de otro lector."));
         }
@@ -30,7 +30,7 @@ public static class Acceso
         return Result.Success(propio.Value);
     }
 
-    public static Result? DenegarSiNoEsDuenoOAdmin(ClaimsPrincipal usuario, int lectorId)
+    public static Error? DenegarSiNoEsDuenoOAdmin(ClaimsPrincipal usuario, int lectorId)
     {
         if (EsAdmin(usuario))
         {
@@ -43,7 +43,7 @@ public static class Acceso
             return null;
         }
 
-        return Result.Failure(Denegado("No puedes acceder a los datos de otro lector."));
+        return Denegado("No puedes acceder a los datos de otro lector.");
     }
 
     private static Error Denegado(string mensaje) =>

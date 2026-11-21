@@ -108,7 +108,6 @@ public sealed class LibrosTests(SqlServerFixture fixture) : IntegrationTest(fixt
             .Single(libro => libro.GetProperty("idLibro").GetInt32() == libroId);
         var detalle = await LeerJson(await Client.GetAsync($"/api/libros/{libroId}"));
 
-        // 3 copias, 1 inactiva: "2 de 2", no "2 de 3".
         item.GetProperty("totalEjemplares").GetInt32().Should().Be(2);
         item.GetProperty("disponibles").GetInt32().Should().Be(2);
         detalle.GetProperty("totalEjemplares").GetInt32().Should().Be(2);
