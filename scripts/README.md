@@ -1,8 +1,10 @@
 # Scripts
 
+`limpieza-datos-prueba.sql` es solo para limpiar los datos de QA del entorno de demo. La aplicación nunca borra físicamente: usa baja lógica.
+
 `migrations.sql` es el esquema idempotente. `limpieza-datos-prueba.sql` no es una migración: borra libros, ejemplares, lectores, usuarios y reservas creados a mano en QA.
 
-Solo toca filas que no están en el seed de `DatosIniciales` y cuyo título, autor, nombre, correo, identificador o código de inventario contiene `QA`, `Test`, `Prueba` o `Live`. No borra `admin@demo.local`, `ana.lopez@demo.local`, `carlos.mendez@demo.local` ni los ISBN y códigos `BIB-001` a `BIB-051`.
+Solo toca filas que no están en el seed de `DatosIniciales` y cuyo título, autor, nombre, correo, identificador o código de inventario contiene `QA` o `Prueba`. No borra `admin@demo.local`, `ana.lopez@demo.local`, `carlos.mendez@demo.local` ni los ISBN y códigos `BIB-001` a `BIB-051`.
 
 El script abre una transacción, lista lo que borraría y termina en `ROLLBACK`. Para aplicarlo, pon `@Confirmar` en `1`.
 

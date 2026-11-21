@@ -3,7 +3,7 @@ using backend_asa.Common.Results;
 using backend_asa.Domain.Enums;
 using backend_asa.Features.Auth;
 using backend_asa.Infrastructure.Persistence;
-using Microsoft.Data.SqlClient;
+using backend_asa.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Reserva.Crear;
@@ -139,7 +139,7 @@ public static class CrearReservaHandler
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (EsReservaDuplicada(exception))
+        catch (DbUpdateException exception) when (exception.EsViolacionDeIndiceUnico())
         {
             return Result.Failure<CrearReservaResponse>(new Error(
                 "ejemplar-ya-reservado",
@@ -154,7 +154,4 @@ public static class CrearReservaHandler
             reserva.Estado,
             reserva.FechaSolicitud));
     }
-
-    private static bool EsReservaDuplicada(DbUpdateException exception) =>
-        exception.InnerException is SqlException sql && sql.Number is 2601 or 2627;
 }

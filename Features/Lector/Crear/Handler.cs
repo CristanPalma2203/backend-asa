@@ -3,7 +3,7 @@ using backend_asa.Domain;
 using backend_asa.Domain.Enums;
 using backend_asa.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.SqlClient;
+using backend_asa.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Lector.Crear;
@@ -81,7 +81,7 @@ public static class CrearLectorHandler
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (EsDuplicado(exception))
+        catch (DbUpdateException exception) when (exception.EsViolacionDeIndiceUnico())
         {
             return await db.Lectores.AnyAsync(item => item.Identificador == identificador && item.IdLector != lector.IdLector, cancellationToken)
                 ? IdentificadorDuplicado()
@@ -108,7 +108,4 @@ public static class CrearLectorHandler
             "identificador-duplicado",
             "Ya existe un lector con ese identificador.",
             ErrorType.Conflict));
-
-    private static bool EsDuplicado(DbUpdateException exception) =>
-        exception.InnerException is SqlException sql && sql.Number is 2601 or 2627;
 }

@@ -23,9 +23,13 @@ public static class ObtenerResumenHandler
 
         var copiasDeLibrosActivos = db.Ejemplares.AsNoTracking().Where(e => e.Libro.Estado == EstadoLibro.Activo);
 
-        var activos = await copiasDeLibrosActivos.CountAsync(e => e.Estado != EstadoEjemplar.Inactivo, cancellationToken);
-        var disponibles = await copiasDeLibrosActivos.CountAsync(e => e.Estado == EstadoEjemplar.Disponible, cancellationToken);
-        var reservados = await copiasDeLibrosActivos.CountAsync(e => e.Estado == EstadoEjemplar.Reservado, cancellationToken);
+        var copiasPorEstado = await copiasDeLibrosActivos
+            .GroupBy(e => e.Estado)
+            .Select(g => new { Estado = g.Key, Total = g.Count() })
+            .ToDictionaryAsync(x => x.Estado, x => x.Total, cancellationToken);
+        var activos = copiasPorEstado.Where(par => par.Key != EstadoEjemplar.Inactivo).Sum(par => par.Value);
+        var disponibles = copiasPorEstado.GetValueOrDefault(EstadoEjemplar.Disponible);
+        var reservados = copiasPorEstado.GetValueOrDefault(EstadoEjemplar.Reservado);
 
         var kpis = new ResumenKpis(
             await db.Libros.AsNoTracking().CountAsync(l => l.Estado == EstadoLibro.Activo, cancellationToken),

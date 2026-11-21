@@ -1,6 +1,6 @@
 using backend_asa.Common.Results;
 using backend_asa.Infrastructure.Persistence;
-using Microsoft.Data.SqlClient;
+using backend_asa.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Libro.Editar;
@@ -32,7 +32,7 @@ public static class EditarLibroHandler
         {
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (EsIsbnDuplicado(exception))
+        catch (DbUpdateException exception) when (exception.EsViolacionDeIndiceUnico())
         {
             return IsbnDuplicado();
         }
@@ -45,7 +45,4 @@ public static class EditarLibroHandler
             "isbn-duplicado",
             "Ya existe un libro con ese ISBN.",
             ErrorType.Conflict));
-
-    private static bool EsIsbnDuplicado(DbUpdateException exception) =>
-        exception.InnerException is SqlException sql && sql.Number is 2601 or 2627;
 }

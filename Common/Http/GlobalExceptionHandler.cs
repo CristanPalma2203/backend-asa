@@ -1,6 +1,6 @@
 using System.Text.Json;
+using backend_asa.Common.Persistence;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Common.Http;
@@ -53,7 +53,7 @@ public sealed class GlobalExceptionHandler(IHostEnvironment environment) : IExce
                 "El registro fue modificado por otro usuario. Vuelve a cargar los datos e inténtalo de nuevo.");
         }
 
-        if (exception is DbUpdateException { InnerException: SqlException sql } && sql.Number is 2601 or 2627)
+        if (exception is DbUpdateException dbUpdate && dbUpdate.EsViolacionDeIndiceUnico())
         {
             return (
                 StatusCodes.Status409Conflict,

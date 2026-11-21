@@ -3,7 +3,7 @@ SET NOCOUNT ON;
 DECLARE @Confirmar bit = 0;
 
 DECLARE @Patrones TABLE (Patron nvarchar(20) NOT NULL PRIMARY KEY);
-INSERT INTO @Patrones (Patron) VALUES (N'%QA%'), (N'%Test%'), (N'%Prueba%'), (N'%Live%');
+INSERT INTO @Patrones (Patron) VALUES (N'%QA%'), (N'%Prueba%');
 
 CREATE TABLE #IsbnSeed (Isbn varchar(20) NOT NULL PRIMARY KEY);
 INSERT INTO #IsbnSeed (Isbn) VALUES

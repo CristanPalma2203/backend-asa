@@ -1,6 +1,6 @@
 using backend_asa.Common.Results;
 using backend_asa.Infrastructure.Persistence;
-using Microsoft.Data.SqlClient;
+using backend_asa.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Lector.Editar;
@@ -51,7 +51,7 @@ public static class EditarLectorHandler
         {
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (exception.InnerException is SqlException sql && sql.Number is 2601 or 2627)
+        catch (DbUpdateException exception) when (exception.EsViolacionDeIndiceUnico())
         {
             return await db.Lectores.AnyAsync(item => item.Identificador == identificador && item.IdLector != id, cancellationToken)
                 ? IdentificadorDuplicado()

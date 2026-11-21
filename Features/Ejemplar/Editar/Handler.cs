@@ -1,6 +1,6 @@
 using backend_asa.Common.Results;
 using backend_asa.Infrastructure.Persistence;
-using Microsoft.Data.SqlClient;
+using backend_asa.Common.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend_asa.Features.Ejemplar.Editar;
@@ -33,7 +33,7 @@ public static class EditarEjemplarHandler
         {
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (EsCodigoDuplicado(exception))
+        catch (DbUpdateException exception) when (exception.EsViolacionDeIndiceUnico())
         {
             return CodigoDuplicado();
         }
@@ -46,7 +46,4 @@ public static class EditarEjemplarHandler
             "codigo-inventario-duplicado",
             "Ya existe un ejemplar con ese código de inventario.",
             ErrorType.Conflict));
-
-    private static bool EsCodigoDuplicado(DbUpdateException exception) =>
-        exception.InnerException is SqlException sql && sql.Number is 2601 or 2627;
 }
