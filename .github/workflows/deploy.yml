@@ -3,12 +3,15 @@ name: Build y push de la imagen a GHCR
 on:
   push:
     branches: [main]
+  # En PRs solo corren los tests: el job image no se ejecuta.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
-# Una publicación a la vez; si llega otro push mientras una está en curso, la nueva espera.
+# En main, una publicación a la vez (la nueva espera). En un PR, un push nuevo cancela la ejecución anterior.
 concurrency:
-  group: publish-backend-asa-image
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'publish-backend-asa-image' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Sin permisos por defecto: cada job pide solo lo que necesita.
 permissions: {}
@@ -36,8 +39,8 @@ jobs:
   image:
     name: Imagen a GHCR
     needs: test
-    # Solo se publica lo que está en main (también al lanzarlo a mano).
-    if: github.ref == 'refs/heads/main'
+    # Solo se publica desde main (push o lanzado a mano), nunca desde un pull request.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
