@@ -1,111 +1,61 @@
 # backend-asa
 
-API REST de una biblioteca: catálogo de libros, ejemplares físicos, lectores y reservas. La regla central es que dos personas nunca se queden con la misma copia, aunque reserven en el mismo instante.
+API REST de una biblioteca (libros, ejemplares, lectores y reservas) que garantiza que dos personas nunca se queden con la misma copia, aunque reserven en el mismo instante.
 
-El frontend vive en otro repo: [frontend-asa](https://github.com/CristanPalma2203/frontend-asa).
+Frontend: [frontend-asa](https://github.com/CristanPalma2203/frontend-asa).
+
+## Probar en vivo
+
+- **Front:** https://frontend-asa.cristianpalma1703.workers.dev/
+- **API:** https://ca-asa-backend-test.politerock-5d0ff971.centralus.azurecontainerapps.io · health check: [`/health`](https://ca-asa-backend-test.politerock-5d0ff971.centralus.azurecontainerapps.io/health)
+
+| Rol | Correo | Contraseña | Qué puede hacer |
+| --- | --- | --- | --- |
+| Admin | admin@demo.local | admin | Gestiona libros, ejemplares y lectores; reserva y cancela para cualquier lector |
+| Lector | ana.lopez@demo.local | user | Ve el catálogo, reserva a su nombre y ve o cancela sus reservas |
 
 ## Stack
 
-- .NET 10 con minimal APIs.
-- EF Core 10 sobre SQL Server 2022.
-- FluentValidation para las entradas.
-- JWT Bearer para autenticación, con roles `Admin` y `Lector`.
-- OpenAPI más Scalar en Development.
-- xUnit, FluentAssertions, Testcontainers (SQL Server) y Respawn para los tests.
-- Docker con build multi-stage y Docker Compose (API + SQL Server).
+- .NET 10 (minimal APIs) y EF Core 10 sobre SQL Server 2022.
+- FluentValidation, JWT Bearer con roles `Admin` y `Lector`, OpenAPI + Scalar.
+- xUnit, FluentAssertions, Testcontainers y Respawn.
+- Docker multi-stage y Docker Compose (API + SQL Server).
 
 ## Arquitectura
 
-Uso **Vertical Slice**. Cada caso de uso es una carpeta `Features/<Área>/<Operación>/` con un archivo por pieza: `Endpoint.cs` (`IEndpoint`), `Handler.cs`, `Request.cs`, `Response.cs` y `Validator.cs`; solo están los que la operación necesita. Lo que comparten varias operaciones de un área queda en la raíz del área (`LibroIsbn`, `CodigoInventario`, `RowVersionToken`, `ReservaDetalle`, `Acceso`). Los endpoints se registran solos por reflexión (`AddEndpoints` / `MapEndpoints`).
-
-```
-Common/          Endpoints, Result/Error, ProblemDetails, validación, paginación, OpenAPI
-Domain/          Entidades y enums (Libro, Ejemplar, Lector, Reserva, Usuario)
-Features/        Casos de uso: una carpeta por área y una subcarpeta por operación (detalle abajo)
-Infrastructure/  DbContext, configuraciones EF, converters, migraciones y seed
-scripts/         migrations.sql idempotente
-tests/           Tests de integración contra SQL Server real
-```
+**Vertical Slice.** Cada caso de uso vive en su propia carpeta `Features/<Área>/<Operación>/` con su endpoint, handler, request, response y validador (solo los que necesita). Lo compartido por un área queda en su raíz. Los endpoints se registran solos por reflexión, y los handlers devuelven `Result` en vez de lanzar excepciones para los errores de negocio.
 
 ```
 Features/
-├── Auth/
-│   ├── Login/            Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
-│   ├── Me/               Endpoint.cs
-│   ├── Acceso.cs
-│   ├── AuthOptions.cs
-│   └── BearerSecuritySchemeTransformer.cs
-├── Ejemplar/
-│   ├── CambiarEstado/    Endpoint.cs, Handler.cs, Request.cs, Validator.cs
-│   ├── Crear/            Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
-│   ├── Desactivar/       Endpoint.cs, Handler.cs, Request.cs, Validator.cs
-│   ├── Editar/           Endpoint.cs, Handler.cs, Request.cs, Validator.cs
-│   ├── Listar/           Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
-│   ├── CodigoInventario.cs
-│   └── RowVersionToken.cs
-├── Lector/
-│   ├── Crear/            Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
-│   ├── Desactivar/       Endpoint.cs, Handler.cs, Request.cs, Validator.cs
-│   ├── Editar/           Endpoint.cs, Handler.cs, Request.cs, Validator.cs
-│   ├── Listar/           Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
-│   └── Obtener/          Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
-├── Libro/
-│   ├── Crear/            Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
-│   ├── Desactivar/       Endpoint.cs, Handler.cs, Request.cs, Validator.cs
-│   ├── Editar/           Endpoint.cs, Handler.cs, Request.cs, Validator.cs
-│   ├── Listar/           Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
-│   ├── Obtener/          Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
-│   └── LibroIsbn.cs
-└── Reserva/
-    ├── Cancelar/         Endpoint.cs, Handler.cs, Request.cs, Validator.cs
-    ├── Crear/            Endpoint.cs, Handler.cs, Request.cs, Response.cs, Validator.cs
-    ├── ListarPorLector/  Endpoint.cs, Handler.cs, Request.cs, Validator.cs
-    ├── Obtener/          Endpoint.cs, Handler.cs, Request.cs, Validator.cs
-    └── ReservaDetalle.cs
+├── Auth/      Login, Me
+├── Libro/     Crear, Editar, Desactivar, Listar, Obtener
+├── Ejemplar/  Crear, Editar, Desactivar, CambiarEstado, Listar
+├── Lector/    Crear, Editar, Desactivar, Listar, Obtener
+└── Reserva/   Crear, Cancelar, Obtener, ListarPorLector
 ```
 
-Los handlers devuelven `Result` / `Result<T>` y no lanzan excepciones para los errores de negocio. `ResultExtensions.ToHttpResult()` traduce cada `ErrorType` a su status HTTP.
+El resto: `Common/` (Result, ProblemDetails, validación, paginación), `Domain/` (entidades), `Infrastructure/` (EF Core, migraciones, seed), `tests/`.
 
-### Decisiones
+## Decisiones clave
 
-**Concurrencia de reservas.** `POST /api/reservas` abre una transacción `ReadCommitted`, valida lector, libro y reserva duplicada, y toma una copia así:
+**Concurrencia de reservas.** Reservar abre una transacción y toma la primera copia libre con `UPDLOCK, READPAST`: la fila queda bloqueada hasta el commit, y una reserva simultánea salta a la siguiente copia en vez de esperar. Si no queda ninguna, responde `409 sin-stock`.
 
 ```sql
-SELECT TOP (1) e.*
-FROM Ejemplares AS e WITH (UPDLOCK, READPAST, ROWLOCK)
-WHERE e.IdLibro = {libroId} AND e.Estado = 'Disponible'
-ORDER BY e.CodigoInventario
+SELECT TOP (1) * FROM Ejemplares WITH (UPDLOCK, READPAST, ROWLOCK)
+WHERE IdLibro = @libroId AND Estado = 'Disponible' ORDER BY CodigoInventario
 ```
 
-`UPDLOCK` + `ROWLOCK` bloquean solo esa fila hasta el commit. `READPAST` hace que una transacción concurrente salte la fila bloqueada y tome la siguiente copia libre en vez de esperar. Si no queda ninguna, respondo `409 sin-stock`.
+**Bloqueo del lector.** Antes de comprobar si el lector ya tiene una reserva activa de ese libro, bloquea su fila (`SELECT * FROM Lectores WITH (UPDLOCK, ROWLOCK) WHERE IdLector = @id`). Así dos peticiones simultáneas del mismo lector se ordenan, y la segunda recibe `422 reserva-duplicada`. Lectores distintos no se esperan entre sí.
 
-Antes de verificar la reserva duplicada, la misma transacción bloquea la fila del lector:
+**Índice único filtrado como segunda barrera.** `IX_Reservas_IdEjemplar_Activa` (único, `WHERE Estado = 'Activa'`) impide en la propia base dos reservas activas del mismo ejemplar. Si algo se escapara del código, SQL Server lo rechaza y la API responde `409 ejemplar-ya-reservado`.
 
-```sql
-SELECT * FROM Lectores WITH (UPDLOCK, ROWLOCK) WHERE IdLector = {lectorId}
-```
+**Stock calculado.** No hay columna de stock: "disponibles" es el conteo de ejemplares en estado `Disponible`. Reservar o cancelar solo cambia el estado de una copia, así que el número nunca se desfasa.
 
-Sin este bloqueo había una carrera: si el mismo lector enviaba varias reservas del mismo libro a la vez, todas veían "no hay reserva activa" y, como `READPAST` les da copias distintas, el índice único no las frenaba y se creaban varias. Con `UPDLOCK` la segunda petición del mismo lector espera a que la primera haga commit y entonces ve su reserva, así que responde `422 reserva-duplicada`. Solo se serializan las reservas del mismo lector; las de lectores distintos no se esperan entre sí. Un test lanza cuatro reservas simultáneas de Ana sobre un libro con tres copias y comprueba un 201, tres `reserva-duplicada` y una sola reserva activa.
+**`rowversion` en ejemplares.** Cada ejemplar viaja con su `rowVersion`, y el cliente lo devuelve al editar. Si otra persona lo cambió antes, la API responde `409 conflicto-concurrencia` en vez de pisar el cambio.
 
-Como segunda barrera, `IX_Reservas_IdEjemplar_Activa` es un índice **único filtrado** (`[Estado] = 'Activa'`). Si por cualquier camino se intentara una segunda reserva activa del mismo ejemplar, SQL Server lo rechaza (2601/2627) y respondo `409 ejemplar-ya-reservado`. Un test dispara dos reservas simultáneas de la única copia y comprueba un 201, un 409 y una sola reserva activa.
+**Errores como ProblemDetails con `code`.** Todos los errores son `application/problem+json` con un `code` estable (`sin-stock`, `lector-inactivo`…). El frontend decide qué mostrar por `code`, no por el texto.
 
-**Stock calculado.** No guardo un contador. "Disponibles" es el conteo de ejemplares en estado `Disponible`, así nunca se desfasa del estado real de cada copia.
-
-**Concurrencia optimista con `rowversion`.** `Ejemplar.RowVersion` es `rowversion`. Lo envío en base64 y el cliente lo devuelve al cambiar el estado de un ejemplar o al editarlo. Si otro usuario lo modificó antes, EF lanza `DbUpdateConcurrencyException` y respondo `409 conflicto-concurrencia`.
-
-**Errores como ProblemDetails con `code`.** Todas las respuestas de error son `application/problem+json` con una extensión `code` en kebab-case (`sin-stock`, `lector-inactivo`…). El frontend decide qué mostrar por `code`, no por el texto. Las validaciones devuelven `400 validacion-fallida` con `errors` por campo. `GlobalExceptionHandler` cubre concurrencia, duplicados e internos.
-
-**Contrato JSON.**
-
-- Los enums viajan como texto (`"estado": "Activa"`). Uso `JsonStringEnumConverter` y el OpenAPI los declara `type: string`.
-- Las fechas salen en UTC con `Z`. Un `ValueConverter` global marca como `Utc` todo `DateTime` leído de SQL Server, y los handlers guardan con `TimeProvider.GetUtcNow()`.
-- Las reservas exponen `fechaSolicitud` y `fechaCancelacion`, y los ejemplares `idEjemplar`.
-
-**Checks en la base.** `CK_Libro_Estado`, `CK_Ejemplar_Estado`, `CK_Lector_Estado`, `CK_Reserva_Estado`, `CK_Usuario_Rol`, `CK_Usuario_Estado` y `CK_Reserva_FechaCancelacion` (si el estado es `Cancelada`, la fecha es obligatoria).
-
-## Base de datos
-
-Sacado de `Infrastructure/Persistence/Configurations/*.cs`; los tipos son los que genera la migración. `PK` clave primaria (`int IDENTITY`), `FK` clave foránea, `UK` único.
+## Modelo de datos
 
 ```mermaid
 erDiagram
@@ -162,96 +112,26 @@ erDiagram
     }
 ```
 
-Todas las FK son `ON DELETE RESTRICT`: no hay borrado físico en cascada, las bajas son lógicas por `Estado`. Un lector tiene a lo sumo un usuario (`IX_Usuarios_IdLector`), y un usuario puede no tener lector (el admin).
+Todas las bajas son lógicas (por `Estado`) y las FK no borran en cascada.
 
-**Índices**
+<details>
+<summary>Índices y CHECK principales</summary>
 
-| Índice | Tabla | Columnas | Tipo |
-| --- | --- | --- | --- |
-| `IX_Libros_Isbn` | Libros | `Isbn` | Único |
-| `IX_Libros_Estado` | Libros | `Estado` | |
-| `IX_Ejemplares_CodigoInventario` | Ejemplares | `CodigoInventario` | Único |
-| `IX_Ejemplares_Estado` | Ejemplares | `Estado` | |
-| `IX_Ejemplares_IdLibro_Estado` | Ejemplares | `IdLibro`, `Estado` | Compuesto (conteo de disponibles; por ser `IdLibro` la columna inicial, también sirve para buscar por libro y para la FK) |
-| `IX_Lectores_Identificador` | Lectores | `Identificador` | Único |
-| `IX_Lectores_Correo` | Lectores | `Correo` | Único |
-| `IX_Reservas_IdLector` | Reservas | `IdLector` | |
-| `IX_Reservas_IdEjemplar` | Reservas | `IdEjemplar` | |
-| `IX_Reservas_IdEjemplar_Activa` | Reservas | `IdEjemplar` | **Único filtrado** `WHERE [Estado] = 'Activa'`: una sola reserva activa por ejemplar |
-| `IX_Reservas_Estado` | Reservas | `Estado` | |
-| `IX_Usuarios_Correo` | Usuarios | `Correo` | Único |
-| `IX_Usuarios_IdLector` | Usuarios | `IdLector` | Único filtrado `WHERE [IdLector] IS NOT NULL` |
+| Índice | Para qué |
+| --- | --- |
+| `IX_Reservas_IdEjemplar_Activa` | Único filtrado `WHERE Estado = 'Activa'`: una sola reserva activa por ejemplar |
+| `IX_Ejemplares_IdLibro_Estado` | Contar disponibles y buscar ejemplares por libro |
+| `IX_Usuarios_IdLector` | Único filtrado `WHERE IdLector IS NOT NULL`: un usuario por lector |
+| Únicos de negocio | `Libros.Isbn`, `Ejemplares.CodigoInventario`, `Lectores.Correo`, `Lectores.Identificador`, `Usuarios.Correo` |
 
-No hay un índice aparte sobre `Ejemplares.IdLibro`: era redundante con `IX_Ejemplares_IdLibro_Estado` y lo quita la migración `QuitarIndiceEjemplaresIdLibro`.
+| CHECK | Regla |
+| --- | --- |
+| `CK_*_Estado`, `CK_Usuario_Rol` | Cada `Estado` y `Rol` solo admite los valores de su enum |
+| `CK_Reserva_FechaCancelacion` | Una reserva `Cancelada` tiene `FechaCancelacion` |
 
-**CHECK**
+</details>
 
-| Restricción | Tabla | Condición |
-| --- | --- | --- |
-| `CK_Libro_Estado` | Libros | `[Estado] IN ('Activo', 'Inactivo')` |
-| `CK_Ejemplar_Estado` | Ejemplares | `[Estado] IN ('Disponible', 'Reservado', 'Prestado', 'Inactivo')` |
-| `CK_Lector_Estado` | Lectores | `[Estado] IN ('Activo', 'Inactivo')` |
-| `CK_Reserva_Estado` | Reservas | `[Estado] IN ('Activa', 'Cancelada', 'Completada')` |
-| `CK_Reserva_FechaCancelacion` | Reservas | `([Estado] <> 'Cancelada') OR ([FechaCancelacion] IS NOT NULL)` |
-| `CK_Usuario_Rol` | Usuarios | `[Rol] IN ('Admin', 'Lector')` |
-| `CK_Usuario_Estado` | Usuarios | `[Estado] IN ('Activo', 'Inactivo')` |
-
-**Stock disponible.** No existe una columna de stock: `disponibles` es `COUNT(*)` de los `Ejemplares` del libro con `Estado = 'Disponible'`, calculado en cada consulta y apoyado en `IX_Ejemplares_IdLibro_Estado`.
-Reservar, cancelar o desactivar solo cambian el `Estado` de un ejemplar, así que el número no puede desfasarse de las copias reales.
-
-## Requisitos
-
-- **.NET 10 SDK**, para compilar, correr en local y lanzar los tests.
-- **Para correr en local:** SQL Server accesible desde la máquina (instancia local, LocalDB o Developer Edition).
-- **Para Docker y para los tests:** Docker Desktop encendido. Compose debe ser **v2** (el comando `docker compose`, no el antiguo `docker-compose` v1), porque el archivo usa la Compose Specification: `name:` de nivel superior, sin `version:`, y `depends_on` con `condition: service_healthy`. Probado con Docker Compose v2.24.6.
-- Opcional: `dotnet-ef` (`dotnet tool install --global dotnet-ef`) para crear migraciones o regenerar `scripts/migrations.sql`.
-
-## Cómo correrlo
-
-### Visual Studio / IIS Express (Development)
-
-1. SQL Server local. La cadena por defecto (`appsettings.Development.json`) es `Server=localhost;Database=database-asa;Integrated Security=True;TrustServerCertificate=True`. Si la tuya es otra, cámbiala ahí o en la variable `ConnectionStrings__database-asa`.
-2. Abro `backend-asa.slnx` y arranco el perfil **IIS Express** (`https://localhost:44358`) o **https** (`https://localhost:7212`). Con la CLI: `dotnet run --launch-profile https`.
-3. En Development, `Program.cs` corre `MigrateAsync`, que aplica las migraciones y el seed. Scalar queda en `/scalar` (y `/` redirige ahí).
-
-### Docker Compose
-
-```bash
-cp .env.example .env     # y cambio todos los valores marcados CAMBIAR
-docker compose up --build
-```
-
-- `db`: SQL Server 2022 con volumen `mssql-data` y healthcheck con `sqlcmd`. No publico el 1433 al host.
-- `api`: imagen local multi-stage (`sdk:10.0` → `aspnet:10.0`), corre como usuario no root `app` en el puerto 8080, con `HEALTHCHECK` a `/health`. Arranca cuando `db` está healthy y tiene `restart: on-failure`. Además, EF Core usa `EnableRetryOnFailure`, así que si SQL Server tarda en aceptar conexiones la API reintenta en vez de caerse.
-- La API queda en `http://localhost:8080` y el health check en `http://localhost:8080/health`.
-
-Todos los secretos (contraseña de `sa`, `JWT_KEY`, contraseñas del seed) salen de `.env`, que no se versiona.
-
-Por defecto el contenedor corre en `Production`: sin Scalar ni OpenAPI. Con `ASPNETCORE_ENVIRONMENT=Development` en `.env` se publican.
-
-**Migraciones al arrancar.** Fuera de Development no migro ni siembro, salvo que `Database:MigrateOnStartup=true` (variable `Database__MigrateOnStartup`). Compose la pone en `true` para que la base quede lista sola. En un despliegue real la dejaría apagada y aplicaría `scripts/migrations.sql`.
-
-Para empezar de cero: `docker compose down -v` (borra el volumen de la base).
-
-## Usuarios demo
-
-El seed crea dos usuarios en la tabla `Usuarios`. En la base guardo solo el hash.
-
-| Correo | Rol | Contraseña |
-| --- | --- | --- |
-| admin@demo.local | Admin | `Seed:AdminPassword` |
-| ana.lopez@demo.local | Lector (ligada al lector Ana López) | `Seed:LectorPassword` |
-
-Las contraseñas no están en este README. Dependen de cómo levantes la API:
-
-- **Con Docker Compose:** salen de tu `.env`, que copias de `.env.example` (`cp .env.example .env`) y donde cambias los valores marcados `CAMBIAR`. Las variables son `SEED_ADMIN_PASSWORD` y `SEED_LECTOR_PASSWORD`. `.env` no se versiona, así que cada uno define las suyas.
-- **En local (Visual Studio o `dotnet run`, entorno Development):** salen de la sección `Seed` de `appsettings.Development.json`. Ese archivo es **solo para desarrollo**: no se carga fuera de Development y sus valores no deben usarse en ningún otro entorno.
-
-Si faltan, el seed no crea usuarios.
-
-El token lleva `sub`, `email`, `role` y, si el usuario tiene lector, `lector_id`. En Scalar elijo el esquema Bearer y pego el `accessToken` de `POST /api/auth/login`, sin la palabra `Bearer`.
-
-## Endpoints principales
+## Endpoints
 
 | Método | Ruta | Quién | Qué hace |
 | --- | --- | --- | --- |
@@ -279,6 +159,9 @@ El token lleva `sub`, `email`, `role` y, si el usuario tiene lector, `lector_id`
 | GET | /health | Público | Comprueba la conexión a la base |
 
 ## Códigos de error
+
+<details>
+<summary>Ver todos los códigos</summary>
 
 | Código | Status |
 | --- | --- |
@@ -310,96 +193,53 @@ El token lleva `sub`, `email`, `role` y, si el usuario tiene lector, `lector_id`
 | ejemplar-reservado | 422 |
 | error-interno | 500 |
 
-`json-invalido` es un body con JSON mal formado o con un valor de tipo incorrecto (por ejemplo `"lectorId": "abc"`). `solicitud-invalida` cubre el resto de fallos de binding: un parámetro de ruta o query con formato inválido, un body ausente o un `Content-Type` no soportado.
+</details>
+
+## Correrlo en local
+
+**Con Docker Compose** (requiere Docker Desktop):
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+La API queda en http://localhost:8080 (health check en `/health`).
+
+**Con Visual Studio o `dotnet run`** (requiere .NET 10 SDK y SQL Server local):
+
+1. Revisar la cadena de conexión en `appsettings.Development.json` (por defecto `Server=localhost;Database=database-asa;Integrated Security=True`).
+2. Abrir `backend-asa.slnx` y arrancar, o ejecutar `dotnet run --launch-profile https`. Al arrancar crea la base y carga los datos de ejemplo. Scalar queda en `/scalar`.
 
 ## Tests
-
-Necesitan **Docker encendido**: Testcontainers levanta un SQL Server 2022 desechable.
 
 ```bash
 dotnet test tests/backend-asa.Tests/backend-asa.Tests.csproj
 ```
 
-Son tests de integración de punta a punta (HTTP → API → SQL Server real). La fixture migra y siembra una vez, y Respawn limpia la base entre tests. Son 33 y cubren:
+Necesitan Docker encendido: cada ejecución levanta un SQL Server real y desechable. Son tests de integración de punta a punta (HTTP → API → base de datos). Cubren:
 
-- **Libros:** listado con datos iniciales, `search` como alias de `buscar`, filtro `autor` sin distinguir mayúsculas, alta como admin, ISBN duplicado e ISBN inválido.
-- **Ejemplares:** código duplicado, que no se pueda inactivar una copia reservada, editar con `rowVersion` vieja (`409 conflicto-concurrencia`) y desactivar una copia sin borrarla.
-- **Reservas:**
-  - stock al reservar y al cancelar;
-  - cancelar dos veces: la segunda da `422 reserva-no-activa` y no cambia nada;
-  - lector inactivo, sin stock y reserva duplicada;
-  - 401 sin token y 403 si un lector reserva por otro;
-  - **dos reservas simultáneas de la única copia**;
-  - **cuatro reservas simultáneas del mismo lector y libro**: un 201 y tres `reserva-duplicada`.
-- **Lectores:** correo duplicado, baja con reservas activas, 403 para un lector, alta con y sin contraseña, y contraseña corta.
-- **Usuarios:** un usuario inactivo no entra.
-- **Contrato:**
-  - enums como texto en JSON y en OpenAPI;
-  - `fechaSolicitud` y `fechaCancelacion` en UTC con `Z`;
-  - `idEjemplar` en el detalle y en el listado;
-  - un body JSON roto da `400 json-invalido` como ProblemDetails.
-- **Migraciones:** que el modelo no tenga cambios pendientes (`HasPendingModelChanges`).
-
-## Migraciones y `scripts/migrations.sql`
-
-Las migraciones están en `Infrastructure/Persistence/Migrations`. Las aplico de cuatro maneras:
-
-1. Automática en Development, con `MigrateAsync` al arrancar.
-2. Automática en Docker, con `Database__MigrateOnStartup=true`.
-3. A mano: `dotnet ef database update --project backend-asa.csproj`.
-4. Con el script idempotente `scripts/migrations.sql`, que puede correrse varias veces sin romper nada:
-
-   ```bash
-   sqlcmd -S localhost -d database-asa -E -i scripts/migrations.sql
-   ```
-
-   Se regenera con `dotnet ef migrations script --idempotent -o scripts/migrations.sql`.
-
-## Despliegue
-
-### Imagen (GitHub Actions)
-
-`.github/workflows/deploy.yml` construye y publica la imagen. No despliega nada en Azure. Se dispara con cada push a `main`, y a mano desde **Actions → Build y push de la imagen a GHCR → Run workflow**.
-
-1. **Tests:** corre `dotnet test` (Testcontainers usa el Docker del runner). Si fallan, no se publica la imagen.
-2. **Imagen:** construye el `Dockerfile` y la sube a GHCR con dos tags: `ghcr.io/cristanpalma2203/backend-asa:latest` y `:<sha del commit>`. Usa el `GITHUB_TOKEN` (`packages: write`): no hay que crear secrets.
-
-La imagen solo se publica desde `main`. Si se lanza a mano desde otra rama, solo corren los tests. El tag con el SHA queda para saber qué commit hay en cada imagen y para volver a una versión anterior si hace falta.
-
-### Container App en Azure
-
-La Container App `ca-asa-backend-test` (resource group `asa-test`) usa la imagen `ghcr.io/cristanpalma2203/backend-asa:latest`. Escucha en el puerto `8080` (`ASPNETCORE_HTTP_PORTS=8080`), que es el *target port* del ingress. Las variables de entorno y los secrets se configuran en Azure, no en este repo.
-
-Cuando el workflow publica una imagen nueva, la Container App no se actualiza sola. Para desplegarla, desde el portal de Azure:
-
-- **Reiniciar la revisión activa:** **Container App → Revisions and replicas → revisión activa → Restart**.
-- **Crear una nueva revisión:** **Container App → Application → Revisions and replicas → Create new revision** (o **Edit and deploy**), dejar la imagen `:latest` y **Create**.
-
-Si después de reiniciar sigue respondiendo la versión anterior, crear una nueva revisión: así la Container App vuelve a descargar `:latest`.
-
-Para comprobar qué versión quedó, se puede comparar el digest de la imagen de la revisión con el del último run del workflow, o probar `GET /health` y algún endpoint que haya cambiado.
-
-### Antes del primer despliegue
-
-- **Acceso de la Container App a GHCR.** Los paquetes nuevos de GHCR son privados. Hay dos opciones: hacer público el paquete (**Packages → backend-asa → Package settings → Change visibility**), o registrar `ghcr.io` en la Container App con un PAT de solo lectura (`read:packages`), en **Settings → Registries** del portal. Si no, la revisión no puede descargar la imagen.
-- **Migraciones.** Ni el workflow ni el reinicio tocan la base. Los cambios de esquema se aplican con `scripts/migrations.sql` (idempotente), o con `Database__MigrateOnStartup=true` en la configuración de la Container App.
+- **Dos reservas simultáneas de la única copia:** un 201, un 409 y una sola reserva activa.
+- **Cuatro reservas simultáneas del mismo lector y libro:** un 201 y tres `reserva-duplicada`.
+- Stock al reservar y cancelar, sin stock, lector inactivo, cancelar dos veces.
+- Autenticación y permisos (401, 403), validaciones y duplicados.
+- `rowversion` desactualizado, contrato JSON (enums como texto, fechas en UTC, JSON roto) y que no falten migraciones.
 
 ## Supuestos
 
-- Una reserva asigna una copia concreta al momento. No hay cola de espera: sin copias libres, la respuesta es `sin-stock`.
+- Una reserva asigna una copia concreta al momento. No hay cola de espera.
 - Un lector no puede tener dos reservas activas del mismo libro.
-- Las bajas son lógicas (estado `Inactivo`). No borro filas con historial.
-- Desde la API, un ejemplar solo pasa entre `Disponible` e `Inactivo`. `Reservado` lo gestionan las reservas y `Prestado` existe en el enum, pero aún no hay flujo de préstamo.
-- Todas las fechas se guardan y se devuelven en UTC. Convertir a la zona del usuario es tarea del cliente.
-- El contenedor solo sirve HTTP en 8080. TLS lo pondría un proxy o ingress delante. Por eso el log avisa que no encuentra puerto HTTPS para redirigir.
-- Las claves de Data Protection viven dentro del contenedor. La API no las usa para datos persistentes (el JWT se firma con `Jwt:Key`), así que se pueden perder sin efecto.
+- Las bajas son lógicas: no se borran filas con historial.
+- Un ejemplar solo pasa a mano entre `Disponible` e `Inactivo`. `Reservado` lo gestionan las reservas, y `Prestado` existe pero aún no tiene flujo.
+- Las fechas se guardan y devuelven en UTC. Convertirlas a la hora local es tarea del cliente.
 
-Con más tiempo haría esto:
+**Con más tiempo haría:**
 
 - Préstamo y devolución.
 - Refresh token con caducidad más corta.
-- `UserSecretsId` para sacar la cadena de `appsettings.Development.json`.
 - Seguridad OpenAPI por operación en vez de un Bearer global.
+
+Despliegue: ver [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Autor
 
