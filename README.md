@@ -165,6 +165,7 @@ Todas las bajas son lógicas (por `Estado`) y las FK no borran en cascada.
 | PUT | /api/lectores/{id} | Admin | Edita datos y el correo del usuario ligado |
 | DELETE | /api/lectores/{id} | Admin | Baja lógica del lector y de su usuario |
 | POST | /api/lectores/{id}/activar | Admin | Reactiva el lector y su usuario. Idempotente: si ya está activo, también responde 204 |
+| GET | /api/resumen | Admin | Datos del dashboard: KPIs, serie diaria de reservas y cancelaciones, stock por categoría, top 5 más reservados, libros por agotarse y últimos 10 movimientos. `dias`: 14 (por defecto) o 30. Fechas en UTC |
 | GET | /health | Público | Comprueba la conexión a la base |
 
 ## Códigos de error
