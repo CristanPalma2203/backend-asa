@@ -1,5 +1,7 @@
 # backend-asa
 
+[![CI](https://github.com/CristanPalma2203/backend-asa/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/CristanPalma2203/backend-asa/actions/workflows/deploy.yml)
+
 API REST de una biblioteca (libros, ejemplares, lectores y reservas) que garantiza que dos personas nunca se queden con la misma copia, aunque reserven en el mismo instante.
 
 Frontend: [frontend-asa](https://github.com/CristanPalma2203/frontend-asa).
@@ -13,6 +15,11 @@ Frontend: [frontend-asa](https://github.com/CristanPalma2203/frontend-asa).
 | --- | --- | --- | --- |
 | Admin | admin@demo.local | admin | Gestiona libros, ejemplares y lectores; reserva y cancela para cualquier lector |
 | Lector | ana.lopez@demo.local | user | Ve el catálogo, reserva a su nombre y ve o cancela sus reservas |
+
+Estas contraseñas son las del entorno en vivo. En local los correos son los mismos, pero las contraseñas cambian:
+
+- **Con `dotnet run` / Visual Studio:** `Admin-demo-123` (admin) y `Ana-demo-123` (lector), definidas en `appsettings.Development.json`.
+- **Con Docker Compose:** las que pongas en `SEED_ADMIN_PASSWORD` y `SEED_LECTOR_PASSWORD` de tu `.env`.
 
 ## Stack
 
@@ -203,6 +210,8 @@ Todas las bajas son lógicas (por `Estado`) y las FK no borran en cascada.
 cp .env.example .env
 docker compose up --build
 ```
+
+Después del `cp` y antes del `up`, edita en `.env` las variables `MSSQL_SA_PASSWORD`, `JWT_KEY`, `SEED_ADMIN_PASSWORD` y `SEED_LECTOR_PASSWORD`, que traen marcadores (`CAMBIAR…` / `<COMPLETAR>`).
 
 La API queda en http://localhost:8080 (health check en `/health`).
 
