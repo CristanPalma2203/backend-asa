@@ -10,6 +10,19 @@ public sealed class ContratoTests(SqlServerFixture fixture) : IntegrationTest(fi
 {
     private const string PrincipitoIsbn = "9788498381498";
 
+    [Theory]
+    [InlineData("/health")]              // respuesta normal
+    [InlineData("/api/libros/999999")]   // 404 ProblemDetails
+    [InlineData("/api/lectores")]        // 401 sin token
+    public async Task Respuestas_TraenHeadersDeSeguridad(string url)
+    {
+        var response = await Client.GetAsync(url);
+
+        response.Headers.GetValues("X-Content-Type-Options").Should().ContainSingle().Which.Should().Be("nosniff");
+        response.Headers.GetValues("X-Frame-Options").Should().ContainSingle().Which.Should().Be("DENY");
+        response.Headers.GetValues("Referrer-Policy").Should().ContainSingle().Which.Should().Be("no-referrer");
+    }
+
     [Fact]
     public async Task Body_JsonRoto_Devuelve400JsonInvalidoComoProblemDetails()
     {

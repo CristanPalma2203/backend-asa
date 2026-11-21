@@ -10,10 +10,10 @@ Notas para quien despliega u opera backend-asa. Para evaluar el proyecto basta c
 | `Jwt__Key` | Clave de firma del JWT (32+ caracteres). Sin ella la API no arranca |
 | `Seed__AdminPassword`, `Seed__LectorPassword` | Contraseñas de los usuarios demo (ver [Seed](#seed-y-usuarios-demo)) |
 | `Database__MigrateOnStartup` | `true`: aplica migraciones y seed al arrancar fuera de Development |
-| `Docs__Enabled` | `true`: publica `/openapi/v1.json` y `/scalar` fuera de Development. Por defecto `false` |
+| `Docs__Enabled` | `true`: publica `/openapi/v1.json` y `/scalar` fuera de Development. Por defecto `false`; en la Container App está en `true` |
 | `Cors__AllowedOrigins__0` | Origen del frontend permitido por CORS |
 
-**`Docs:Enabled`.** Siempre activo en Development. Fuera de Development solo se activa a propósito, por ejemplo para que un evaluador explore la API, y conviene apagarlo después. Los endpoints siguen exigiendo JWT; en Scalar se elige el esquema Bearer y se pega el `accessToken` de `POST /api/auth/login`, sin la palabra `Bearer`.
+**`Docs:Enabled`.** Siempre activo en Development. En la Container App está en `true` a propósito: Scalar y `/openapi/v1.json` quedan públicos en producción para que el evaluador pueda explorar la API. Para ocultarlos basta con ponerlo en `false` (o quitar la variable). Los endpoints siguen exigiendo JWT; en Scalar se elige el esquema Bearer y se pega el `accessToken` de `POST /api/auth/login`, sin la palabra `Bearer`.
 
 **`Database:MigrateOnStartup`.** En Development siempre se migra y se siembra. En otros entornos solo con este flag (`docker-compose.yml` lo pone en `true`). En un despliegue real lo dejaría apagado y aplicaría `scripts/migrations.sql`.
 

@@ -48,7 +48,8 @@ public static class ListarLibrosHandler
                 libro.Titulo,
                 libro.Autor,
                 libro.Categoria,
-                libro.Ejemplares.Count(),
+                // Total = copias activas (no Inactivo), para que la ficha muestre "2 de 2" y no "2 de 3".
+                libro.Ejemplares.Count(ejemplar => ejemplar.Estado != EstadoEjemplar.Inactivo),
                 libro.Ejemplares.Count(ejemplar => ejemplar.Estado == EstadoEjemplar.Disponible)));
 
         var pagina = await proyectada.ToPagedResponseAsync(

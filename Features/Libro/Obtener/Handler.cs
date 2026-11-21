@@ -24,7 +24,9 @@ public static class ObtenerLibroHandler
                 item.Autor,
                 item.Categoria,
                 item.Estado,
-                Disponibles = item.Ejemplares.Count(ejemplar => ejemplar.Estado == EstadoEjemplar.Disponible),
+                // Total = copias activas (no Inactivo), igual que en el listado.
+                TotalEjemplares = item.Ejemplares.Count(ejemplar => ejemplar.Estado != EstadoEjemplar.Inactivo),
+                Disponibles =item.Ejemplares.Count(ejemplar => ejemplar.Estado == EstadoEjemplar.Disponible),
                 Ejemplares = item.Ejemplares
                     .OrderBy(ejemplar => ejemplar.CodigoInventario)
                     .Select(ejemplar => new
@@ -53,6 +55,7 @@ public static class ObtenerLibroHandler
             libro.Autor,
             libro.Categoria,
             libro.Estado,
+            libro.TotalEjemplares,
             libro.Disponibles,
             libro.Ejemplares
                 .Select(ejemplar => new ObtenerLibroEjemplar(

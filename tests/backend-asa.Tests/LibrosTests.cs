@@ -91,6 +91,30 @@ public sealed class LibrosTests(SqlServerFixture fixture) : IntegrationTest(fixt
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
+    [Fact]
+    public async Task TotalEjemplares_CuentaSoloLosActivos_EnListadoYDetalle()
+    {
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
+        var listado = await LeerJson(await Client.GetAsync("/api/libros?page=1&pageSize=50"));
+        var libroId = listado.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("isbn").GetString() == "9788498381498")
+            .GetProperty("idLibro").GetInt32();
+        var copias = await LeerJson(await admin.GetAsync($"/api/libros/{libroId}/ejemplares"));
+        var ejemplarId = copias.EnumerateArray().First().GetProperty("idEjemplar").GetInt32();
+        (await admin.DeleteAsync($"/api/ejemplares/{ejemplarId}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var item = (await LeerJson(await Client.GetAsync("/api/libros?page=1&pageSize=50")))
+            .GetProperty("items").EnumerateArray()
+            .Single(libro => libro.GetProperty("idLibro").GetInt32() == libroId);
+        var detalle = await LeerJson(await Client.GetAsync($"/api/libros/{libroId}"));
+
+        // 3 copias, 1 inactiva: "2 de 2", no "2 de 3".
+        item.GetProperty("totalEjemplares").GetInt32().Should().Be(2);
+        item.GetProperty("disponibles").GetInt32().Should().Be(2);
+        detalle.GetProperty("totalEjemplares").GetInt32().Should().Be(2);
+        detalle.GetProperty("disponibles").GetInt32().Should().Be(2);
+    }
+
     private async Task<List<string>> Titulos(string url)
     {
         var response = await Client.GetAsync(url);

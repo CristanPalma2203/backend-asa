@@ -11,5 +11,6 @@ public sealed record ObtenerLibroResponse(
     string Autor,
     string Categoria,
     EstadoLibro Estado,
+    int TotalEjemplares,
     int Disponibles,
     IReadOnlyList<ObtenerLibroEjemplar> Ejemplares);

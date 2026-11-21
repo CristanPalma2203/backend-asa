@@ -60,7 +60,7 @@ public sealed class ReservasTests(SqlServerFixture fixture) : IntegrationTest(fi
 
         var segunda = await ana.PostAsync($"/api/reservas/{idReserva}/cancelar", null);
 
-        segunda.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        segunda.StatusCode.Should().Be(HttpStatusCode.Conflict);
         (await Codigo(segunda)).Should().Be("reserva-no-activa");
         var guardada = await Fixture.EnDb(db => db.Reservas
             .Where(item => item.IdReserva == idReserva)

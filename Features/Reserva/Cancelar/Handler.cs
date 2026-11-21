@@ -63,7 +63,7 @@ public static class CancelarReservaHandler
             return Result.Failure(new Error(
                 "reserva-no-activa",
                 "Solo se puede cancelar una reserva activa.",
-                ErrorType.BusinessRule));
+                ErrorType.Conflict));
         }
 
         var ahora = timeProvider.GetUtcNow().UtcDateTime;

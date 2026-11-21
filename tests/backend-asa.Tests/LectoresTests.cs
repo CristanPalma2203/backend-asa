@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using backend_asa.Domain.Enums;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,6 +36,50 @@ public sealed class LectoresTests(SqlServerFixture fixture) : IntegrationTest(fi
 
         baja.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
         (await Codigo(baja)).Should().Be("lector-con-reservas-activas");
+    }
+
+    [Fact]
+    public async Task Activar_LectorDesactivado_LoReactivaConSuUsuarioYEsIdempotente()
+    {
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
+        var lectorId = await IdLector(AnaCorreo);
+        (await admin.DeleteAsync($"/api/lectores/{lectorId}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var loginBloqueado = await Client.PostAsJsonAsync("/api/auth/login", new { correo = AnaCorreo, password = AnaPassword }, Json);
+        loginBloqueado.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
+        var activacion = await admin.PostAsync($"/api/lectores/{lectorId}/activar", null);
+        var otraVez = await admin.PostAsync($"/api/lectores/{lectorId}/activar", null);
+
+        activacion.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        otraVez.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var estados = await Fixture.EnDb(db => db.Lectores
+            .Where(lector => lector.IdLector == lectorId)
+            .Select(lector => new
+            {
+                Lector = lector.Estado,
+                Usuario = db.Usuarios.Where(usuario => usuario.IdLector == lectorId).Select(usuario => usuario.Estado).Single()
+            })
+            .SingleAsync());
+        estados.Lector.Should().Be(EstadoLector.Activo);
+        estados.Usuario.Should().Be(EstadoUsuario.Activo);
+        var ana = await LoginAsync(AnaCorreo, AnaPassword);
+        (await ana.GetAsync($"/api/lectores/{lectorId}/reservas")).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Activar_NoExiste_Devuelve404_YComoLector_Devuelve403()
+    {
+        var admin = await LoginAsync(AdminCorreo, AdminPassword);
+        var ana = await LoginAsync(AnaCorreo, AnaPassword);
+        var lectorId = await IdLector(AnaCorreo);
+
+        var inexistente = await admin.PostAsync("/api/lectores/999999/activar", null);
+        var comoLector = await ana.PostAsync($"/api/lectores/{lectorId}/activar", null);
+
+        inexistente.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await Codigo(inexistente)).Should().Be("lector-no-encontrado");
+        comoLector.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await Codigo(comoLector)).Should().Be("acceso-denegado");
     }
 
     [Fact]

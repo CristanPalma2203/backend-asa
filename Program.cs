@@ -125,6 +125,7 @@ builder.Services.AddDbContext<BibliotecaDbContext>(options =>
 
 var app = builder.Build();
 
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseExceptionHandler();
 
 // En Development siempre migro y siembro. Fuera de Development solo si Database:MigrateOnStartup=true

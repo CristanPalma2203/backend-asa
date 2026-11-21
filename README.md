@@ -10,6 +10,7 @@ Frontend: [frontend-asa](https://github.com/CristanPalma2203/frontend-asa).
 
 - **Front:** https://frontend-asa.cristianpalma1703.workers.dev/
 - **API:** https://ca-asa-backend-test.politerock-5d0ff971.centralus.azurecontainerapps.io · health check: [`/health`](https://ca-asa-backend-test.politerock-5d0ff971.centralus.azurecontainerapps.io/health)
+- **Documentación de la API:** [Scalar](https://ca-asa-backend-test.politerock-5d0ff971.centralus.azurecontainerapps.io/scalar) y [`/openapi/v1.json`](https://ca-asa-backend-test.politerock-5d0ff971.centralus.azurecontainerapps.io/openapi/v1.json). Quedan públicas en producción a propósito, para que se pueda explorar la API. Los endpoints siguen pidiendo JWT: en Scalar se elige el esquema Bearer y se pega el `accessToken` de `POST /api/auth/login`.
 
 | Rol | Correo | Contraseña | Qué puede hacer |
 | --- | --- | --- | --- |
@@ -163,6 +164,7 @@ Todas las bajas son lógicas (por `Estado`) y las FK no borran en cascada.
 | POST | /api/lectores | Admin | Crea el lector; con `password` (8+) crea también su usuario |
 | PUT | /api/lectores/{id} | Admin | Edita datos y el correo del usuario ligado |
 | DELETE | /api/lectores/{id} | Admin | Baja lógica del lector y de su usuario |
+| POST | /api/lectores/{id}/activar | Admin | Reactiva el lector y su usuario. Idempotente: si ya está activo, también responde 204 |
 | GET | /health | Público | Comprueba la conexión a la base |
 
 ## Códigos de error
@@ -190,10 +192,10 @@ Todas las bajas son lógicas (por `Estado`) y las FK no borran en cascada.
 | ejemplar-ya-reservado | 409 |
 | conflicto-concurrencia | 409 |
 | registro-duplicado | 409 |
+| reserva-no-activa | 409 |
 | libro-inactivo | 422 |
 | lector-inactivo | 422 |
 | reserva-duplicada | 422 |
-| reserva-no-activa | 422 |
 | libro-con-reservas-activas | 422 |
 | lector-con-reservas-activas | 422 |
 | estado-no-permitido | 422 |
@@ -232,6 +234,8 @@ Necesitan Docker encendido: cada ejecución levanta un SQL Server real y desecha
 - **Cuatro reservas simultáneas del mismo lector y libro:** un 201 y tres `reserva-duplicada`.
 - Stock al reservar y cancelar, sin stock, lector inactivo, cancelar dos veces.
 - Autenticación y permisos (401, 403), validaciones y duplicados.
+- Reactivar un lector (vuelve a poder entrar, es idempotente, 404 y 403) y que el total de ejemplares cuente solo los activos.
+- Headers de seguridad (`nosniff`, `DENY`, `no-referrer`) también en respuestas de error.
 - `rowversion` desactualizado, contrato JSON (enums como texto, fechas en UTC, JSON roto) y que no falten migraciones.
 
 ## Supuestos
