@@ -33,6 +33,13 @@ public sealed class LuxiaTests(SqlServerFixture fixture) : IntegrationTest(fixtu
         resultado.Value.IdsLibros.Should().Equal(idPrincipito);
         var herramienta = moonshot.MensajeDeHerramientaEnviado(1);
         herramienta.Should().Contain("\"titulo\":\"El Principito\"").And.Contain("\"ejemplares_disponibles\":3");
+        moonshot.Solicitudes.Should().HaveCount(2).And.AllSatisfy(body =>
+        {
+            body.GetProperty("thinking").GetProperty("type").GetString().Should().Be("disabled");
+            body.GetProperty("tool_choice").GetString().Should().Be("auto");
+            body.GetProperty("tools").GetArrayLength().Should().Be(1);
+            body.TryGetProperty("temperature", out _).Should().BeFalse();
+        });
     }
 
     [Fact]

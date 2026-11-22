@@ -26,7 +26,12 @@ public sealed class MoonshotClient(HttpClient http, IOptions<LuxiaOptions> opcio
         using var solicitud = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
         {
             Content = JsonContent.Create(
-                new ChatSolicitud(config.Modelo, mensajes, herramientas, Temperature: 0.3),
+                new ChatSolicitud(
+                    config.Modelo,
+                    mensajes,
+                    herramientas.Count > 0 ? herramientas : null,
+                    herramientas.Count > 0 ? "auto" : null,
+                    ChatThinking.Desactivado),
                 options: Json)
         };
         solicitud.Headers.Authorization = new AuthenticationHeaderValue("Bearer", config.ApiKey);
@@ -56,8 +61,14 @@ public sealed record ChatFuncion(string Name, string Description, JsonElement Pa
 public sealed record ChatSolicitud(
     string Model,
     IReadOnlyList<ChatMensaje> Messages,
-    IReadOnlyList<ChatHerramienta> Tools,
-    double Temperature);
+    IReadOnlyList<ChatHerramienta>? Tools,
+    string? ToolChoice,
+    ChatThinking Thinking);
+
+public sealed record ChatThinking(string Type)
+{
+    public static readonly ChatThinking Desactivado = new("disabled");
+}
 
 public sealed record ChatCompletado(IReadOnlyList<ChatEleccion> Choices);
 
