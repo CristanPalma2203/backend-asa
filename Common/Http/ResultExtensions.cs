@@ -30,6 +30,7 @@ public static class ResultExtensions
             ErrorType.BusinessRule => (StatusCodes.Status422UnprocessableEntity, "Regla de negocio no satisfecha"),
             ErrorType.Unauthorized => (StatusCodes.Status401Unauthorized, "No autenticado"),
             ErrorType.Forbidden => (StatusCodes.Status403Forbidden, "Acceso denegado"),
+            ErrorType.ServiceUnavailable => (StatusCodes.Status503ServiceUnavailable, "Servicio no disponible"),
             _ => (StatusCodes.Status400BadRequest, "Solicitud no válida")
         };
 

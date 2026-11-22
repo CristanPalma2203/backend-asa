@@ -37,6 +37,7 @@ services:
       Seed__LectorPassword: ${SEED_LECTOR_PASSWORD:?Define SEED_LECTOR_PASSWORD en .env}
       Database__MigrateOnStartup: "true"
       Docs__Enabled: ${DOCS_ENABLED:-false}
+      Luxia__ApiKey: ${LUXIA_API_KEY:-}
 
 volumes:
   mssql-data:

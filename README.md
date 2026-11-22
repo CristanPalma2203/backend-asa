@@ -34,6 +34,7 @@ Features/
 ├── Libro/     Crear, Editar, Desactivar, Listar, Obtener
 ├── Ejemplar/  Crear, Editar, Desactivar, CambiarEstado, Listar
 ├── Lector/    Crear, Editar, Activar, Desactivar, Listar, Obtener
+├── Luxia/     Preguntar
 ├── Reserva/   Crear, Cancelar, Obtener, ListarPorLector
 └── Resumen/   Obtener
 ```
@@ -163,7 +164,16 @@ Al arrancar se cargan, si no existen:
 | DELETE | /api/lectores/{id} | Admin | Baja lógica del lector y de su usuario |
 | POST | /api/lectores/{id}/activar | Admin | Reactiva el lector y su usuario. Idempotente: si ya está activo, también responde 204 |
 | GET | /api/resumen | Admin | Datos del dashboard: KPIs, serie diaria de reservas y cancelaciones, stock por categoría, top 5 más reservados, libros por agotarse y últimos 10 movimientos. `dias`: 14 (por defecto) o 30. Fechas en UTC |
+| POST | /api/luxia/preguntar | Autenticado | Pregunta a LuxIA sobre el catálogo. Body `{ pregunta, historial }`; responde `{ texto, idsLibros }`. 503 `luxia-no-disponible` si no hay IA, 429 `demasiadas-solicitudes` si se pasa del límite |
 | GET | /health | Público | Comprueba la conexión a la base |
+
+## LuxIA
+
+`POST /api/luxia/preguntar` responde preguntas sobre el catálogo con Kimi (Moonshot, API compatible con OpenAI). El modelo consulta los libros con la herramienta `buscar_libros`, que usa la misma consulta que `GET /api/libros`, así que títulos y disponibles salen de la base y no del modelo. LuxIA no reserva: manda al lector a la ficha del libro.
+
+- **Llave:** variable de entorno `Luxia__ApiKey` (en Docker Compose, `LUXIA_API_KEY` del `.env`). Nunca va en `appsettings`. Modelo, URL base y tiempo máximo están en la sección `Luxia` de `appsettings.json`.
+- **Respaldo:** sin llave, si Moonshot falla o tarda más de 15 s, responde `503 luxia-no-disponible` y el front usa sus respuestas locales.
+- **Límite:** 10 preguntas por minuto por usuario (`Luxia:PreguntasPorMinuto`).
 
 ## Códigos de error
 
@@ -198,7 +208,9 @@ Al arrancar se cargan, si no existen:
 | lector-con-reservas-activas | 422 |
 | estado-no-permitido | 422 |
 | ejemplar-reservado | 422 |
+| demasiadas-solicitudes | 429 |
 | error-interno | 500 |
+| luxia-no-disponible | 503 |
 
 </details>
 

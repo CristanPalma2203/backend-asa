@@ -3,6 +3,7 @@ using backend_asa.Common.Http;
 using backend_asa.Common.OpenApi;
 using backend_asa.Domain;
 using backend_asa.Features.Auth;
+using backend_asa.Features.Luxia;
 using backend_asa.Infrastructure.Persistence;
 using backend_asa.Infrastructure.Persistence.Seed;
 using FluentValidation;
@@ -11,9 +12,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Text;
+using System.Threading.RateLimiting;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -98,6 +101,31 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddEndpoints();
 builder.Services.AddSingleton(TimeProvider.System);
 
+var luxiaSection = builder.Configuration.GetSection(LuxiaOptions.SectionName);
+builder.Services.Configure<LuxiaOptions>(luxiaSection);
+builder.Services.AddHttpClient<MoonshotClient>((services, http) =>
+    http.BaseAddress = new Uri(services.GetRequiredService<IOptions<LuxiaOptions>>().Value.BaseUrl));
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, _) =>
+        await Results.Problem(
+            title: "Demasiadas solicitudes",
+            detail: "Hiciste muchas preguntas seguidas. Espera un momento y vuelve a intentarlo.",
+            statusCode: StatusCodes.Status429TooManyRequests,
+            extensions: new Dictionary<string, object?> { ["code"] = "demasiadas-solicitudes" })
+            .ExecuteAsync(context.HttpContext);
+    options.AddPolicy(LuxiaOptions.PoliticaPorUsuario, http =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            http.User.Identity?.Name ?? string.Empty,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = http.RequestServices.GetRequiredService<IOptions<LuxiaOptions>>().Value.PreguntasPorMinuto,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+});
+
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
 {
@@ -148,6 +176,7 @@ app.UseCors("frontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapHealthChecks("/health").AllowAnonymous().ExcludeFromDescription();
 

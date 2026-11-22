@@ -7,7 +7,8 @@ public enum ErrorType
     Conflict,
     BusinessRule,
     Unauthorized,
-    Forbidden
+    Forbidden,
+    ServiceUnavailable
 }
 
 public record Error(string Code, string Message, ErrorType Type);
