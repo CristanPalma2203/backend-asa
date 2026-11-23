@@ -114,6 +114,42 @@ public sealed class LibrosTests(SqlServerFixture fixture) : IntegrationTest(fixt
         detalle.GetProperty("disponibles").GetInt32().Should().Be(2);
     }
 
+    [Fact]
+    public async Task Listar_BuscarPorNombreDeCategoria_DevuelveLosLibrosDeEsaCategoria()
+    {
+        var novelas = await Titulos("/api/libros?buscar=novela&page=1&pageSize=50");
+        var clasicosSinAcento = await Titulos("/api/libros?search=CLASICOS&page=1&pageSize=50");
+
+        novelas.Should().BeEquivalentTo(
+            "Cien años de soledad", "Pedro Páramo", "Rayuela", "La casa de los espíritus",
+            "Matar a un ruiseñor", "1984", "Fahrenheit 451");
+        clasicosSinAcento.Should().BeEquivalentTo(
+            "Don Quijote de la Mancha", "Orgullo y prejuicio", "Crimen y castigo",
+            "La Odisea", "Hamlet", "El hobbit");
+    }
+
+    [Fact]
+    public async Task Listar_CategoriaIdConTexto_CombinaAmbosFiltros()
+    {
+        var soloTexto = await Titulos("/api/libros?buscar=de&page=1&pageSize=50");
+        var textoEnInfantil = await Titulos("/api/libros?buscar=de&categoriaId=Infantil&page=1&pageSize=50");
+        var soloInfantil = await Titulos("/api/libros?categoriaId=Infantil&page=1&pageSize=50");
+
+        soloTexto.Should().Contain(["Cien años de soledad", "Don Quijote de la Mancha"]);
+        textoEnInfantil.Should().Equal("Charlie y la fábrica de chocolate", "El Principito");
+        soloInfantil.Should().Equal(
+            "Charlie y la fábrica de chocolate", "El Principito", "Harry Potter y la piedra filosofal");
+    }
+
+    [Fact]
+    public async Task Listar_CategoriaIdDemasiadoLargo_Devuelve400()
+    {
+        var response = await Client.GetAsync($"/api/libros?categoriaId={new string('x', 81)}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await Codigo(response)).Should().Be("validacion-fallida");
+    }
+
     private async Task<List<string>> Titulos(string url)
     {
         var response = await Client.GetAsync(url);

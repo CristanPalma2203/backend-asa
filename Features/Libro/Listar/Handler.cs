@@ -8,6 +8,8 @@ namespace backend_asa.Features.Libro.Listar;
 
 public static class ListarLibrosHandler
 {
+    private const string SinMayusculasNiAcentos = "Latin1_General_CI_AI";
+
     public static async Task<Result<PagedResponse<ListarLibrosItem>>> Handle(
         ListarLibrosRequest request,
         BibliotecaDbContext db,
@@ -21,9 +23,10 @@ public static class ListarLibrosHandler
         {
             var buscar = request.TextoBuscado.Trim();
             query = query.Where(libro =>
-                libro.Titulo.Contains(buscar) ||
-                libro.Autor.Contains(buscar) ||
-                libro.Isbn.Contains(buscar));
+                EF.Functions.Collate(libro.Titulo, SinMayusculasNiAcentos).Contains(buscar) ||
+                EF.Functions.Collate(libro.Autor, SinMayusculasNiAcentos).Contains(buscar) ||
+                EF.Functions.Collate(libro.Isbn, SinMayusculasNiAcentos).Contains(buscar) ||
+                EF.Functions.Collate(libro.Categoria, SinMayusculasNiAcentos).Contains(buscar));
         }
 
         if (!string.IsNullOrWhiteSpace(request.Autor))
@@ -36,6 +39,12 @@ public static class ListarLibrosHandler
         {
             var categoria = request.Categoria.Trim();
             query = query.Where(libro => libro.Categoria == categoria);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.CategoriaId))
+        {
+            var categoriaId = request.CategoriaId.Trim();
+            query = query.Where(libro => libro.Categoria == categoriaId);
         }
 
         var proyectada = query

@@ -31,6 +31,7 @@ Frontend: [frontend-asa](https://github.com/CristanPalma2203/frontend-asa).
 ```
 Features/
 ├── Auth/      Login, Me
+├── Categoria/ Listar
 ├── Libro/     Crear, Editar, Desactivar, Listar, Obtener
 ├── Ejemplar/  Crear, Editar, Desactivar, CambiarEstado, Listar
 ├── Lector/    Crear, Editar, Activar, Desactivar, Listar, Obtener
@@ -143,7 +144,8 @@ Al arrancar se cargan, si no existen:
 | --- | --- | --- | --- |
 | POST | /api/auth/login | Público | Entrega el JWT |
 | GET | /api/auth/me | Autenticado | Rol, nombre y lector del token |
-| GET | /api/libros | Público | Libros activos paginados. `buscar` (o su alias `search`): contiene, en título, autor o ISBN. `autor`: contiene, sin distinguir mayúsculas. `categoria`: exacta. `page`, `pageSize` |
+| GET | /api/libros | Público | Libros activos paginados. `buscar` (o su alias `search`): contiene, en título, autor, ISBN o categoría, sin distinguir mayúsculas ni acentos. `autor`: contiene, sin distinguir mayúsculas. `categoria` y `categoriaId`: exacta. `page`, `pageSize` |
+| GET | /api/categorias | Público | Categorías con al menos un libro activo: `id` (el nombre), `nombre` y `cantidadLibros`, ordenadas por nombre |
 | GET | /api/libros/{id} | Público | Detalle, disponibles y ejemplares |
 | POST | /api/libros | Admin | Crea un libro |
 | PUT | /api/libros/{id} | Admin | Edita ISBN, título, autor y categoría |

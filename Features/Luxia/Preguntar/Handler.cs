@@ -124,7 +124,7 @@ public static class PreguntarLuxiaHandler
         var filtros = JsonSerializer.Deserialize<FiltrosBusqueda>(llamada.Function.Arguments, MoonshotClient.Json)
             ?? new FiltrosBusqueda(null, null, null);
         var pagina = await ListarLibrosHandler.Handle(
-            new ListarLibrosRequest(filtros.Search, null, filtros.Autor, filtros.Categoria, Page: 1, PageSize: ResultadosPorBusqueda),
+            new ListarLibrosRequest(filtros.Search, null, filtros.Autor, filtros.Categoria, null, Page: 1, PageSize: ResultadosPorBusqueda),
             db,
             cancellationToken);
 

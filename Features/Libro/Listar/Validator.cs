@@ -25,5 +25,10 @@ public sealed class ListarLibrosValidator : AbstractValidator<ListarLibrosReques
             .MaximumLength(100)
             .WithMessage("La categoría no puede superar 100 caracteres.")
             .When(x => x.Categoria is not null);
+
+        RuleFor(x => x.CategoriaId)
+            .MaximumLength(80)
+            .WithMessage("La categoría no puede superar 80 caracteres.")
+            .When(x => x.CategoriaId is not null);
     }
 }

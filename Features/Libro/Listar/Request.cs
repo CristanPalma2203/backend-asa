@@ -5,6 +5,7 @@ public sealed record ListarLibrosRequest(
     string? Search,
     string? Autor,
     string? Categoria,
+    string? CategoriaId,
     int Page = 1,
     int PageSize = 10)
 {
